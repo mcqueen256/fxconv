@@ -24,6 +24,7 @@ Format specifiers
 --ohlc_out
 --ohlc_in
 --headers
+--decimals,d=5
 
 Formating Options
     d   datetime
@@ -94,13 +95,85 @@ Application::Application(int argc, char const* argv[])
     // Unpack command line arguments
     try
     {
-        options_description desc{"Options"};
+        options_description desc{
+            "Usage: fxconv [options] <input files>\n"
+            "\n"
+            "fxconv converts ohlc (or tick) data from an input timeframe to the desired\n"
+            "output timeframe formatted to specification. The output is streamed to stdout\n"
+            "unless specified otherwise. When there are time gaps in the data, the timeframe\n"
+            "at the start of the gap will be trimmed and begin at the end of the gap.\n"
+            "\n"
+            "Conditions\n"
+            "==========\n"
+            " - The input files must have the same timeframe.\n"
+            " - Output timeframe must be smaller than the input timeframe.\n"
+            " - If there is more than one file then they must be named so that they can be\n"
+            "      ordered.\n"
+            "\n"
+            "Options"
+        };
         desc.add_options()
             ("help,h", "Help screen.")
-            ("export,e", value<string>(), "Export to path/to/file (stdout is default).")
-            ("idelimiter", value<string>(), "Input delimiter (whitespace is default).")
+            ("export", value<string>(), "Export to path/to/file (stdout is default).")
+            ("input-delimiter", value<string>(), "Input delimiter (whitespace is default).")
+            ("output-delimiter", value<string>(), "Output delimiter (tab is default).")
             ("overwrite", "Force output overwrite if output file already exists.")
-            ("nooverwrite", "Exit with error when the output file already exists.")
+            ("no-overwrite", "Exit with error when the output file already exists.")
+            ("ask-only", "Export ask data only.")
+            ("bid-only", "Export bid data only.")
+            ("ask-first", "Place ask columns before the bid columns.")
+            ("bid-first", "Place bid columns before the ask columns.")
+            ("format,f", value<string>()->default_value("ohlc"),
+                "Format specifier string for the output, of which describes the format "
+                "of each line. The line will always start with the date (index), then "
+                "it will follow the format specifier for the ask, then bid data (unless "
+                "a flag changes that behaviour.) The formatting options are as follows:\n"
+                "    Option  Description\n"
+                "    o       open\n"
+                "    h       high\n"
+                "    l       low\n"
+                "    c       close\n"
+                "    a       mean\n"
+                "    m       meadian\n"
+                "    e       mode\n"
+                "By default, the format specifier is \"ohlc\""
+            )
+            ("tick", value<string>(),
+                "Informs the converter that the input data is tick data. When this option "
+                "is used, the format of the data must be specified. Specifically the date, "
+                "ask and bid columns. Format options:\n"
+                "    Option  Description\n"
+                "    d       datetime\n"
+                "    a       ask\n"
+                "    b       bid\n"
+                "    x       column filler"
+            )
+            ("headers", "Prepend commented (#) lines describing the data at the top of the file.")
+            ("decimals,d", value<unsigned int>()->default_value(5),
+                "Number of decimal places to allow per data column."
+            )
+            ("start,s", value<string>(),
+                "Specify the time to begin the timeframe series. The specifiers can be as "
+                "follows:\n"
+                "\"day/month/year\"\n"
+                "    e.g. \"11/06/1996\"\n"
+                "\"hour:minute:second\"\n"
+                "    e.g. \"15:55:00\"\n"
+                "\"day/month/year hour:minute:second\"\n"
+                "    e.g. \"11/06/1996 15:55:00\"\n"
+            )
+            ("end,e", value<string>(),
+                "Similar to the --start argument except describes when the timeframe series "
+                "will end."
+            )
+            ("buffer-size", value<string>()->default_value("1M"),
+                "Set the file reading block size. This argument should be a number followed "
+                "by either a 'K' for kilobytes, 'M' for megabytes or 'G' for gigabytes."
+            )
+            ("threads", value<unsigned int>()->default_value(1),
+                "Number of threads to use in conversion process."
+            )
+            ("order", "...")
         ;
         variables_map vm;
         store(parse_command_line(argc, argv, desc), vm);

@@ -64,6 +64,7 @@ using std::endl;
 using std::string;
 using std::vector;
 using std::ofstream;
+using std::ostream;
 using std::runtime_error;
 using std::stringstream;
 using std::cin;
@@ -76,9 +77,10 @@ using std::getline;
 #include <boost/filesystem.hpp>
 
 using boost::program_options::options_description;
+using boost::program_options::positional_options_description;
 using boost::program_options::variables_map;
 using boost::program_options::value;
-using boost::program_options::parse_command_line;
+using boost::program_options::command_line_parser;
 using boost::program_options::store;
 using boost::program_options::notify;
 using boost::program_options::error;
@@ -86,6 +88,7 @@ using boost::filesystem::path;
 using boost::filesystem::is_directory;
 using boost::filesystem::is_regular_file;
 using boost::filesystem::exists;
+
 
 /**
  * Application constructor. Extract the arguments and prepare the program.
@@ -95,24 +98,8 @@ Application::Application(int argc, char const* argv[])
     // Unpack command line arguments
     try
     {
-        options_description desc{
-            "Usage: fxconv [options] <input files>\n"
-            "\n"
-            "fxconv converts ohlc (or tick) data from an input timeframe to the desired\n"
-            "output timeframe formatted to specification. The output is streamed to stdout\n"
-            "unless specified otherwise. When there are time gaps in the data, the timeframe\n"
-            "at the start of the gap will be trimmed and begin at the end of the gap.\n"
-            "\n"
-            "Conditions\n"
-            "==========\n"
-            " - The input files must have the same timeframe.\n"
-            " - Output timeframe must be smaller than the input timeframe.\n"
-            " - If there is more than one file then they must be named so that they can be\n"
-            "      ordered.\n"
-            "\n"
-            "Options"
-        };
-        desc.add_options()
+        options_description generic{"Options"};
+        generic.add_options()
             ("help,h", "Help screen.")
             ("export", value<string>(), "Export to path/to/file (stdout is default).")
             ("input-delimiter", value<string>(), "Input delimiter (whitespace is default).")
@@ -173,18 +160,45 @@ Application::Application(int argc, char const* argv[])
             ("threads", value<unsigned int>()->default_value(1),
                 "Number of threads to use in conversion process."
             )
-            ("order", "...")
+            ("order", value<string>(),
+                "If only one file is given in the input file sequence then this command is not required"
+
+            )
         ;
+        options_description hidden;
+        hidden.add_options()("input-files", value<vector<string>>(), "input files");
+        options_description cmdline_options;
+        cmdline_options.add(generic).add(hidden);
+        positional_options_description input_file_sequence;
+        input_file_sequence.add("input-files", -1);
         variables_map vm;
-        store(parse_command_line(argc, argv, desc), vm);
-        notify(vm);
+        auto parsed = command_line_parser(argc, argv)
+            .options(cmdline_options)
+            .positional(input_file_sequence)
+            .run();
+        store(parsed, vm);
 
         // print help screen and exit
         if (vm.count("help"))
         {
-            cout << desc << endl;
+            cout << "Usage: fxconv [options] <input files>\n";
+            cout << "\n";
+            cout << "fxconv converts ohlc (or tick) data from an input timeframe to the desired\n";
+            cout << "output timeframe formatted to specification. The output is streamed to stdout\n";
+            cout << "unless specified otherwise. When there are time gaps in the data, the timeframe\n";
+            cout << "at the start of the gap will be trimmed and begin at the end of the gap.\n";
+            cout << "\n";
+            cout << "Conditions:\n";
+            cout << " - The input files must have the same timeframe.\n";
+            cout << " - Output timeframe must be smaller than the input timeframe.\n";
+            cout << " - If there is more than one file then they must be named so that they can be\n";
+            cout << "      ordered.\n";
+            cout << "\n";
+            cout << generic << endl;
             exit(0);
         }
+
+        notify(vm); // throws on error so at least print help.
 
         // check that overwrite and nooverwrite are note used together
         if (vm.count("overwrite") && vm.count("nooverwrite"))
@@ -232,6 +246,17 @@ Application::Application(int argc, char const* argv[])
             ofs.open(path_str);
             if (!ofs.is_open()) throw runtime_error("Failed opening file.");
             out.rdbuf(ofs.rdbuf());
+        }
+
+        if(vm.count("input-files")) {
+
+            cout << "input files: ";
+            vector<string> v = vm["input-files"].as<vector<string>>();
+            cout << "[ ";
+            for (auto it = v.begin(); it != v.end()-1 && it != v.end(); it++) {
+                cout << *it << ", ";
+            }
+            cout << v.back() << " ]" << endl;
         }
     }
     catch (const error &ex)

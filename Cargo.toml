@@ -1,0 +1,8 @@
+[package]
+name = "fxconv"
+version = "0.1.0"
+authors = ["Nicholas Buckeridge <bucknich@gmail.com>"]
+
+[dependencies]
+cute = "^0.3.0"
+clap = "^2.29.0"

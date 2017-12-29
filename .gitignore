@@ -7,4 +7,6 @@ Makefile
 fxconv
 fxconvd*
 old/
+target/
 .DS_Store
+Cargo.lock

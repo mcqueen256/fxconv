@@ -6,3 +6,5 @@ CMakeCache.txt
 Makefile
 fxconv
 fxconvd*
+old/
+.DS_Store

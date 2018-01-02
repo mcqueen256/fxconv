@@ -3,6 +3,9 @@ extern crate cute;
 extern crate clap;
 
 mod cliparser;
+mod market;
+
+use market::timeframe;
 
 #[derive(Debug)]
 struct DataSet {

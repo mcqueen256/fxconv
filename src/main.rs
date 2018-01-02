@@ -55,6 +55,7 @@ fn main() {
         .arg(Arg::with_name("timeframe")
             .index(1)
             .required(true)
+            .value_name("TIMEFRAME")
             .help("Specify the output timeframe (eg. \"1m\" is one minute.)")
             .long_help("The time frame is specified by a number followed directly by a single \
             character. The number describes how long the unit in time is and the character is the \
@@ -70,22 +71,28 @@ fn main() {
         .arg(Arg::with_name("output")
             .index(2)
             .required(true)
+            .value_name("OUTPUT")
             .help("The file name to export the data to")
         )
         .arg(Arg::with_name("inputs")
             .index(3)
             .multiple(true)
             .required(true)
+            .value_name("INPUTS")
             .help("The input data file/s. All input files must be of the same format")
         )
-        .arg(Arg::with_name("input delimiter")
+        .arg(Arg::with_name("input-delimiter")
+            .long("input-delimiter")
             .short("i")
             .takes_value(true)
+            .value_name("DELIMITER")
             .help("Input delimiter (whitespace is default)")
         )
-        .arg(Arg::with_name("output delimiter")
+        .arg(Arg::with_name("output-delimiter")
+            .long("output-delimiter")
             .short("o")
             .takes_value(true)
+            .value_name("DELIMITER")
             .help("Output delimiter (tab is default)")
         )
         .arg(Arg::with_name("overwrite")
@@ -122,6 +129,7 @@ fn main() {
             .long("format")
             .short("f")
             .takes_value(true)
+            .value_name("FORMAT")
             .help("Format specifier string for the output, of which describes the format of each \
                 line")
             .long_help([
@@ -143,8 +151,29 @@ fn main() {
         .arg(Arg::with_name("tick")
             .long("tick")
             .short("t")
-            .help("")
-            .long_help("")
+            .help("Informs the converter that the input data is tick data")
+            .long_help([
+                "Informs the converter that the input data is tick data. When this option ",
+                "is used, the format of the data must be specified. Specifically the date, ",
+                "ask and bid columns. Format options:\n",
+                "    Option  Description\n",
+                "    d       datetime\n",
+                "    a       ask\n",
+                "    b       bid\n",
+                "    x       column filler"
+            ].join("").as_str())
+        )
+        .arg(Arg::with_name("headers")
+            .long("headers")
+            .short("h")
+            .help("Prepend commented (#) lines describing the data at the top of the file")
+        )
+        .arg(Arg::with_name("precision")
+            .long("precision")
+            .short("p")
+            .takes_value(true)
+            .value_name("PRECISION")
+            .help("Number of decimal places to allow per data column")
         )
         .get_matches();
     println!("{:#?}", matches);

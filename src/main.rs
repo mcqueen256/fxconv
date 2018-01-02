@@ -47,7 +47,8 @@ fn main() {
             "at the start of the gap will be trimmed and begin at the end of the gap.",
             "",
             "Conditions:",
-            " - The input files must have the same timeframe.",
+            " - The input files must have the same timeframe and be specified in order (when the ",
+            "file ends at a time, the next file must start at the next time)",
             " - Output timeframe must be smaller than the input timeframe.",
             " - If there is more than one file then they must be named so that they can be",
             "      ordered.",
@@ -174,6 +175,56 @@ fn main() {
             .takes_value(true)
             .value_name("PRECISION")
             .help("Number of decimal places to allow per data column")
+        )
+        .arg(Arg::with_name("start")
+            .long("start")
+            .short("s")
+            .takes_value(true)
+            .value_name("DATETIME")
+            .help("Specify the time to begin the timeframe series")
+            .long_help([
+                "Specify the time to begin the timeframe series. The specifiers can be as ",
+                "follows:\n",
+                "\"day/month/year\"\n",
+                "    e.g. \"11/06/1996\"\n",
+                "\"hour:minute:second\"\n",
+                "    e.g. \"15:55:00\"\n",
+                "\"day/month/year hour:minute:second\"\n",
+                "    e.g. \"11/06/1996 15:55:00\"\n"
+            ].join("").as_str())
+        )
+        .arg(Arg::with_name("end")
+            .long("end")
+            .short("e")
+            .takes_value(true)
+            .value_name("DATETIME")
+            .help("Specify the time to end the timeframe series")
+            .long_help([
+                "Specify the time to end the timeframe series. The specifiers can be as ",
+                "follows:\n",
+                "\"day/month/year\"\n",
+                "    e.g. \"11/06/1996\"\n",
+                "\"hour:minute:second\"\n",
+                "    e.g. \"15:55:00\"\n",
+                "\"day/month/year hour:minute:second\"\n",
+                "    e.g. \"11/06/1996 15:55:00\"\n"
+            ].join("").as_str())
+        )
+        .arg(Arg::with_name("gaps")
+            .long("gaps")
+            .short("g")
+            .default_value("skip")
+            .possible_values(&["skip", "continue", "skip-weekends", "stop"])
+            .help("Specify the action to take when encountering a gap in timeframes")
+            .long_help([
+                "Specify the action to take when encountering a gap in timeframes. ",
+                "The actions inclue:\n",
+                "    skip - skip the missing timeframes\n",
+                "    continue - fill in the missing timeframes with the last price\n",
+                "    skip-weekends - only skip the weekends, continue price during the week\n",
+                "    stop - stop when a gap in timeframes is detected, stop the program with an ",
+                "error\n",
+            ].join("").as_str())
         )
         .get_matches();
     println!("{:#?}", matches);

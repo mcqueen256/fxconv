@@ -1,5 +1,7 @@
 use std::fmt;
 
+
+#[derive(PartialEq)]
 pub enum TimeUnit {
     Second,
     Minute,
@@ -66,8 +68,14 @@ mod tests {
     }
 
     #[test]
-    fn timeframe_formatting() {
+    fn timeframe_len() {
         let tf = TimeFrame::new(45, TimeUnit::Minute);
-        assert_eq!("TimeFrame( 45 minute )", format!("{}", tf));
+        assert_eq!(tf.len(), 45);
+    }
+
+    #[test]
+    fn timeframe_unit() {
+        let tf = TimeFrame::new(45, TimeUnit::Minute);
+        assert!(*tf.unit() == TimeUnit::Minute);
     }
 }

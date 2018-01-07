@@ -1,7 +1,7 @@
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
 
-pub fn parse() {
-    let matches = App::new("fxconv")
+pub fn parse<'a>() -> ArgMatches<'a> {
+    App::new("fxconv")
         .version("0.1.0")
         .author("Nicholas Buckeridge <bucknich@gmail.com>")
         .about([
@@ -63,11 +63,13 @@ pub fn parse() {
         .arg(Arg::with_name("overwrite")
             .long("overwrite")
             .short("w")
+            .conflicts_with("no-overwrite")
             .help("Force output overwrite if output file already exists.")
         )
         .arg(Arg::with_name("no-overwrite")
             .long("no-overwrite")
             .short("n")
+            .conflicts_with("overwrite")
             .help("Exit with error when the output file already exists.")
         )
         .arg(Arg::with_name("ask-only")
@@ -190,5 +192,5 @@ pub fn parse() {
                 "error\n",
             ].join("").as_str())
         )
-        .get_matches();
+    .get_matches()
 }

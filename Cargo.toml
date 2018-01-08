@@ -7,3 +7,4 @@ authors = ["Nicholas Buckeridge <bucknich@gmail.com>"]
 cute = "^0.3.0"
 clap = "^2.29.0"
 assert_cli = "^0.5"
+quickersort = "^3.0.0"

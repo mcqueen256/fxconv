@@ -3,13 +3,11 @@ extern crate cute;
 
 extern crate clap;
 extern crate assert_cli;
+extern crate quickersort;
 
 mod cliparser;
 mod market;
 mod converter;
-
-#[cfg(test)]
-mod tests;
 
 use converter::Converter;
 
@@ -47,7 +45,7 @@ fn main() {
     // println!("ds:\n{}", ds);
     // cliparser::parse();
 
-    let converter = Converter::new();
+    let mut converter = Converter::new();
     converter.run();
 
     println!("ddd {}", {1});

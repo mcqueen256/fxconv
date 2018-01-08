@@ -51,6 +51,7 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .short("i")
             .takes_value(true)
             .value_name("DELIMITER")
+            .conflicts_with("output-delimiter")
             .help("Input delimiter (whitespace is default)")
         )
         .arg(Arg::with_name("output-delimiter")
@@ -58,6 +59,7 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .short("o")
             .takes_value(true)
             .value_name("DELIMITER")
+            .conflicts_with("input-delimiter")
             .help("Output delimiter (tab is default)")
         )
         .arg(Arg::with_name("overwrite")
@@ -75,21 +77,25 @@ pub fn parse<'a>() -> ArgMatches<'a> {
         .arg(Arg::with_name("ask-only")
             .long("ask-only")
             .short("a")
+            .conflicts_with_all(&["bid-only", "bid-first"])
             .help("Export ask data only.")
         )
         .arg(Arg::with_name("bid-only")
             .long("bid-only")
             .short("b")
+            .conflicts_with_all(&["ask-only", "ask-first"])
             .help("Export bid data only.")
         )
         .arg(Arg::with_name("ask-first")
             .long("ask-first")
             .short("c")
+            .conflicts_with_all(&["bid-only", "bid-first"])
             .help("Place ask columns before the bid columns.")
         )
         .arg(Arg::with_name("bid-first")
             .long("bid-first")
             .short("d")
+            .conflicts_with_all(&["ask-only", "ask-first"])
             .help("Place bid columns before the ask columns.")
         )
         .arg(Arg::with_name("format")
@@ -109,9 +115,7 @@ pub fn parse<'a>() -> ArgMatches<'a> {
                 "    h       high\n",
                 "    l       low\n",
                 "    c       close\n",
-                "    a       mean\n",
-                "    m       meadian\n",
-                "    e       mode\n",
+                "    m       mean\n",
                 "By default, the format specifier is \"ohlc\""
             ].join("").as_str())
         )

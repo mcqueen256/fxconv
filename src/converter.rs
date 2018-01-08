@@ -11,12 +11,76 @@ use std::io;
 use std::path::Path;
 
 use cliparser;
+use quickersort;
+
+enum AskBidOption {
+    AskOnly,
+    AskFirst,
+    BidOnly,
+    BidFirst
+}
+
+fn open(dat: Vec<f32>) -> f32 {
+    dat.get(0).unwrap().clone()
+}
+
+fn high(dat: Vec<f32>) -> f32 {
+    let mut highest: f32 = dat.get(0).unwrap().clone();
+    for i in dat.into_iter() {
+        if i > highest {
+            highest = i;
+        }
+    }
+    highest
+}
+
+fn low(dat: Vec<f32>) -> f32 {
+    let mut lowest: f32 = dat.get(0).unwrap().clone();
+    for i in dat.into_iter() {
+        if i < lowest {
+            lowest = i;
+        }
+    }
+    lowest
+}
+
+fn close(dat: Vec<f32>) -> f32 {
+    dat.get(dat.len() - 1).unwrap().clone()
+}
+
+fn mean(dat: Vec<f32>) -> f32 {
+    let mut sum: f32 = 0.0;
+    for i in dat.iter() {
+        sum += i;
+    }
+    sum / dat.len() as f32
+}
+
+fn operate(dat: Vec<f32>, op: char) -> f32 {
+    if dat.len() == 0 {
+        panic!("Cannot operate on empty data array");
+    }
+    match op {
+        'o' => open(dat),
+        'h' => high(dat),
+        'l' => low(dat),
+        'c' => close(dat),
+        'm' => mean(dat),
+        _ => {
+            eprintln!("Error: Invalid operator '{}'", op);
+            exit(1);
+        }
+    }
+}
 
 pub struct Converter {
     time_frame: TimeFrame,
     input_files: Vec<File>,
-    output_file: File
-    //Option<>
+    output_file: File,
+    input_delimiter: Option<String>,
+    output_delimiter: Option<String>,
+    ask_bid: Option<AskBidOption>,
+    formatter: usize
 }
 
 impl Converter {
@@ -132,11 +196,46 @@ impl Converter {
                         exit(1);
                     }
                 }
-            }
+            },
+            input_delimiter: {
+                if let Some(delimiter) = matches.value_of("input-delimiter") {
+                    Some(String::from(delimiter))
+                }
+                else {
+                    None
+                }
+            },
+            output_delimiter: {
+                if let Some(delimiter) = matches.value_of("output-delimiter") {
+                    Some(String::from(delimiter))
+                }
+                else {
+                    None
+                }
+            },
+            ask_bid: {
+                if matches.is_present("ask-only") {
+                    Some(AskBidOption::AskOnly)
+                }
+                else if matches.is_present("bid-only") {
+                    Some(AskBidOption::BidOnly)
+                }
+                else if matches.is_present("ask-first") {
+                    Some(AskBidOption::AskFirst)
+                }
+                else if matches.is_present("bid-first") {
+                    Some(AskBidOption::BidFirst)
+                } else {
+                    None
+                }
+            },
+            formatter: {
+                0
+            },
         }
     }
-    pub fn run(&self) {
-
+    pub fn run(&mut self) {
+        let res = self.output_file.write(b"20161101 22:30:03.617,0.76541,0.76562,0.76531,0.76558,0.76551,0.76572,0.76541,0.76559\n").expect("Failed to write line");
     }
     fn read_line(line: &str) {}
 

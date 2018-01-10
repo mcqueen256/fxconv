@@ -103,6 +103,7 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .short("f")
             .takes_value(true)
             .value_name("FORMAT")
+            .conflicts_with("tick")
             .help("Format specifier string for the output, of which describes the format of each \
                 line")
             .long_help([
@@ -122,6 +123,7 @@ pub fn parse<'a>() -> ArgMatches<'a> {
         .arg(Arg::with_name("tick")
             .long("tick")
             .short("t")
+            .conflicts_with("format")
             .help("Informs the converter that the input data is tick data")
             .long_help([
                 "Informs the converter that the input data is tick data. When this option ",
@@ -155,10 +157,6 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .long_help([
                 "Specify the time to begin the timeframe series. The specifiers can be as ",
                 "follows:\n",
-                "\"day/month/year\"\n",
-                "    e.g. \"11/06/1996\"\n",
-                "\"hour:minute:second\"\n",
-                "    e.g. \"15:55:00\"\n",
                 "\"day/month/year hour:minute:second\"\n",
                 "    e.g. \"11/06/1996 15:55:00\"\n"
             ].join("").as_str())
@@ -172,10 +170,6 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .long_help([
                 "Specify the time to end the timeframe series. The specifiers can be as ",
                 "follows:\n",
-                "\"day/month/year\"\n",
-                "    e.g. \"11/06/1996\"\n",
-                "\"hour:minute:second\"\n",
-                "    e.g. \"15:55:00\"\n",
                 "\"day/month/year hour:minute:second\"\n",
                 "    e.g. \"11/06/1996 15:55:00\"\n"
             ].join("").as_str())

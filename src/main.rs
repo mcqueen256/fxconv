@@ -4,6 +4,7 @@ extern crate cute;
 extern crate clap;
 extern crate assert_cli;
 extern crate quickersort;
+extern crate chrono;
 
 mod cliparser;
 mod market;

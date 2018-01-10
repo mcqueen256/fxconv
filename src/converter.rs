@@ -13,12 +13,22 @@ use std::path::Path;
 use cliparser;
 use quickersort;
 
+use chrono::prelude::*;
+
 enum AskBidOption {
     AskOnly,
     AskFirst,
     BidOnly,
     BidFirst
 }
+
+enum Gaps {
+    Skip,
+    Continue,
+    SkipWeekends,
+    Stop
+}
+
 
 fn open(dat: Vec<f32>) -> f32 {
     dat.get(0).unwrap().clone()
@@ -80,7 +90,12 @@ pub struct Converter {
     input_delimiter: Option<String>,
     output_delimiter: Option<String>,
     ask_bid: Option<AskBidOption>,
-    formatter: usize
+    tick: bool,
+    headers: bool,
+    precision: Option<u32>,
+    formatter: usize,
+    start: Option<DateTime<FixedOffset>>,
+    end: Option<DateTime<FixedOffset>>
 }
 
 impl Converter {
@@ -232,10 +247,74 @@ impl Converter {
             formatter: {
                 0
             },
+            tick: matches.is_present("tick"),
+            headers: matches.is_present("headers"),
+            precision: {
+                if let Some(precision) = matches.value_of("precision") {
+                    let precision = match precision.parse::<u32>() {
+                        Ok(p) => p,
+                        Err(error) => {
+                            eprintln!("Error: Precision is not a number {}", error);
+                            exit(1);
+                        }
+                    };
+                    Some(precision)
+                }
+                else {
+                    None
+                }
+
+            },
+            start: {
+                if let Some(datetime) = matches.value_of("start") {
+                    match DateTime::parse_from_str(datetime, "%Y/%m/%d %H:%M:%S") {
+                        Ok(dt) => Some(dt),
+                        Err(error) => {
+                            eprintln!("Error: Start date incorrectly formatted: {}", error);
+                            exit(1);
+                        }
+                    }
+                }
+                else {
+                    None
+                }
+            },
+            end: {
+                if let Some(datetime) = matches.value_of("end") {
+                    match DateTime::parse_from_str(datetime, "%Y/%m/%d %H:%M:%S") {
+                        Ok(dt) => Some(dt),
+                        Err(error) => {
+                            println!("Error: End date incorrectly formatted: {}", error);
+                            exit(1);
+                        }
+                    }
+                }
+                else {
+                    None
+                }
+            }
         }
     }
     pub fn run(&mut self) {
-        let res = self.output_file.write(b"20161101 22:30:03.617,0.76541,0.76562,0.76531,0.76558,0.76551,0.76572,0.76541,0.76559\n").expect("Failed to write line");
+        self.output_file.write(b"20161101 22:30:03.617,0.76541,0.76562,0.76531,0.76558,0.76551,0.76572,0.76541,0.76559\n").expect("Failed to write line");
+        // process input data
+
+        for file in self.input_files.iter_mut() {
+            println!("!start");
+            let size = file.metadata().unwrap().len() as usize;
+            println!("size {}", size);
+            let mut text: Vec<u8> = vec![0; size];
+            match file.read_exact(&mut text) {
+                Ok(_) => {},
+                Err(error) => {
+                    eprintln!("Error: Could not read input file: {}", error);
+                }
+            }
+            let s = String::from_utf8(text).unwrap();
+            
+            //println!("'{}'", String::from_utf8(text).unwrap());
+            println!("!end");
+        }
     }
     fn read_line(line: &str) {}
 

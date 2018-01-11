@@ -1,19 +1,18 @@
 
 use std::process::exit;
-use market::timeframe::TimeFrame;
-use market::timeframe::TimeUnit;
-
 use std::env;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io;
 use std::path::Path;
-
-use cliparser;
-use quickersort;
+use std::collections::VecDeque;
 
 use chrono::prelude::*;
+
+use cliparser::parse;
+use market::timeframe::TimeFrame;
+use market::timeframe::TimeUnit;
 
 enum AskBidOption {
     AskOnly,
@@ -22,88 +21,21 @@ enum AskBidOption {
     BidFirst
 }
 
-enum Gaps {
-    Skip,
-    Continue,
-    SkipWeekends,
-    Stop
-}
-
-
-fn open(dat: Vec<f32>) -> f32 {
-    dat.get(0).unwrap().clone()
-}
-
-fn high(dat: Vec<f32>) -> f32 {
-    let mut highest: f32 = dat.get(0).unwrap().clone();
-    for i in dat.into_iter() {
-        if i > highest {
-            highest = i;
-        }
-    }
-    highest
-}
-
-fn low(dat: Vec<f32>) -> f32 {
-    let mut lowest: f32 = dat.get(0).unwrap().clone();
-    for i in dat.into_iter() {
-        if i < lowest {
-            lowest = i;
-        }
-    }
-    lowest
-}
-
-fn close(dat: Vec<f32>) -> f32 {
-    dat.get(dat.len() - 1).unwrap().clone()
-}
-
-fn mean(dat: Vec<f32>) -> f32 {
-    let mut sum: f32 = 0.0;
-    for i in dat.iter() {
-        sum += i;
-    }
-    sum / dat.len() as f32
-}
-
-fn operate(dat: Vec<f32>, op: char) -> f32 {
-    if dat.len() == 0 {
-        panic!("Cannot operate on empty data array");
-    }
-    match op {
-        'o' => open(dat),
-        'h' => high(dat),
-        'l' => low(dat),
-        'c' => close(dat),
-        'm' => mean(dat),
-        _ => {
-            eprintln!("Error: Invalid operator '{}'", op);
-            exit(1);
-        }
-    }
-}
-
-pub struct Converter {
+pub struct FxTickConv {
     time_frame: TimeFrame,
     input_files: Vec<File>,
     output_file: File,
-    input_delimiter: Option<String>,
-    output_delimiter: Option<String>,
     ask_bid: Option<AskBidOption>,
-    tick: bool,
     headers: bool,
     precision: Option<u32>,
-    formatter: usize,
     start: Option<DateTime<FixedOffset>>,
     end: Option<DateTime<FixedOffset>>
 }
 
-impl Converter {
-    pub fn new() -> Converter {
-        let matches = cliparser::parse();
-
-        println!("{:#?}", cliparser::parse());
-        Converter {
+impl FxTickConv {
+    pub fn new() -> FxTickConv {
+        let matches = parse();
+        FxTickConv {
             time_frame: {
                 let tf = matches.value_of("timeframe").unwrap();
                 // count the digits
@@ -212,22 +144,6 @@ impl Converter {
                     }
                 }
             },
-            input_delimiter: {
-                if let Some(delimiter) = matches.value_of("input-delimiter") {
-                    Some(String::from(delimiter))
-                }
-                else {
-                    None
-                }
-            },
-            output_delimiter: {
-                if let Some(delimiter) = matches.value_of("output-delimiter") {
-                    Some(String::from(delimiter))
-                }
-                else {
-                    None
-                }
-            },
             ask_bid: {
                 if matches.is_present("ask-only") {
                     Some(AskBidOption::AskOnly)
@@ -244,10 +160,6 @@ impl Converter {
                     None
                 }
             },
-            formatter: {
-                0
-            },
-            tick: matches.is_present("tick"),
             headers: matches.is_present("headers"),
             precision: {
                 if let Some(precision) = matches.value_of("precision") {
@@ -295,37 +207,8 @@ impl Converter {
             }
         }
     }
-    pub fn run(&mut self) {
-        self.output_file.write(b"20161101 22:30:03.617,0.76541,0.76562,0.76531,0.76558,0.76551,0.76572,0.76541,0.76559\n").expect("Failed to write line");
-        // process input data
 
-        for file in self.input_files.iter_mut() {
-            println!("!start");
-            let size = file.metadata().unwrap().len() as usize;
-            println!("size {}", size);
-            let mut text: Vec<u8> = vec![0; size];
-            match file.read_exact(&mut text) {
-                Ok(_) => {},
-                Err(error) => {
-                    eprintln!("Error: Could not read input file: {}", error);
-                }
-            }
-            let s = String::from_utf8(text).unwrap();
-            
-            //println!("'{}'", String::from_utf8(text).unwrap());
-            println!("!end");
-        }
-    }
-    fn read_line(line: &str) {}
+    pub fn run(&self) {
 
-
-}
-
-#[cfg(tests)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn construct() {
     }
 }

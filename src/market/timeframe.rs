@@ -7,9 +7,7 @@ pub enum TimeUnit {
     Minute,
     Hour,
     Day,
-    Week,
-    Month,
-    Year
+    Week
 }
 
 /// Display the TimeUnit in human readable terms.
@@ -20,9 +18,7 @@ impl fmt::Display for TimeUnit {
             TimeUnit::Minute => "minute",
             TimeUnit::Hour => "hour",
             TimeUnit::Day => "day",
-            TimeUnit::Week => "week",
-            TimeUnit::Month => "month",
-            TimeUnit::Year => "year"
+            TimeUnit::Week => "week"
         })
     }
 }
@@ -63,8 +59,6 @@ mod tests {
         assert_eq!("hour", format!("{}", TimeUnit::Hour));
         assert_eq!("day", format!("{}", TimeUnit::Day));
         assert_eq!("week", format!("{}", TimeUnit::Week));
-        assert_eq!("month", format!("{}", TimeUnit::Month));
-        assert_eq!("year", format!("{}", TimeUnit::Year));
     }
 
     #[test]

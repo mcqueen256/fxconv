@@ -10,8 +10,10 @@ use std::collections::VecDeque;
 use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::mpsc;
+use std::cmp::Ord;
 
 use chrono::prelude::*;
+use time::Duration;
 
 use cliparser::parse;
 use market::timeframe::TimeFrame;
@@ -41,42 +43,49 @@ enum AskBid {
 
 #[derive(Debug)]
 enum ColumnDescription {
-    DateTime,
     Open,
     High,
     Low,
-    Close,
-    Mean,
+    Close
 }
 
 #[derive(Debug)]
-struct Column<T> {
+struct Column {
     desc: ColumnDescription,
-    ask_bid: Option<AskBid>,
-    data: VecDeque<T>
+    ask_bid: AskBid,
+    data: VecDeque<f32>
 }
 
-impl<T> Column<T> {
-    fn new(desc: ColumnDescription, ask_bid: Option<AskBid>,) -> Column<T> {
-        Column::<T> { desc: desc, ask_bid: ask_bid, data: VecDeque::new() }
+impl Column {
+    fn new(desc: ColumnDescription, ask_bid: AskBid,) -> Column {
+        Column { desc: desc, ask_bid: ask_bid, data: VecDeque::new() }
     }
 
     fn name(&self) -> String {
         let mut name = String::new();
         name.push_str(match self.ask_bid {
-            Some(AskBid::Ask) => "Ask ",
-            Some(AskBid::Bid) => "Bid ",
-            None => "",
+            AskBid::Ask => "Ask ",
+            AskBid::Bid => "Bid "
         });
         name.push_str(match self.desc {
-            ColumnDescription::DateTime => "DateTime",
             ColumnDescription::Open => "Open",
             ColumnDescription::High => "High",
             ColumnDescription::Low => "Low",
-            ColumnDescription::Close => "Close",
-            ColumnDescription::Mean => "Mean",
+            ColumnDescription::Close => "Close"
         });
         name
+    }
+
+    fn data(&mut self) -> &mut VecDeque<f32> {
+        &mut self.data
+    }
+
+    fn ask_bid(&mut self) -> &AskBid {
+        &self.ask_bid
+    }
+
+    fn desc(&mut self) -> &ColumnDescription {
+        &self.desc
     }
 
 }
@@ -105,7 +114,7 @@ pub struct FxTickConv {
 
 
 
-fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinHandle<()>, mpsc::Receiver<Option<InputRow>>) {
+fn input_row_producer(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinHandle<()>, mpsc::Receiver<Option<InputRow>>) {
     let (tx_rows, rx_rows) = channel();
     let t = thread::spawn(move || {
         let mut files: Vec<File> = Vec::new();
@@ -121,9 +130,7 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
         }
 
         for file in files.iter_mut() {
-            println!("!start");
             let size = file.metadata().unwrap().len() as usize;
-            println!("size {}", size);
             let mut text: Vec<u8> = vec![0; size];
             match file.read_exact(&mut text) {
                 Ok(_) => {},
@@ -158,12 +165,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(y) => match y.parse::<i32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (year) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, y, error);
+                                        eprintln!("Error: Line {}, datetime (year) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, y, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (year) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (year) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -171,12 +178,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(m) => match m.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (month) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
+                                        eprintln!("Error: Line {}, datetime (month) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (month) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (month) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -184,12 +191,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(d) => match d.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (day) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, d, error);
+                                        eprintln!("Error: Line {}, datetime (day) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, d, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (day) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (day) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -197,12 +204,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(h) => match h.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (hour) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, h, error);
+                                        eprintln!("Error: Line {}, datetime (hour) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, h, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (hour) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (hour) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -210,12 +217,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(m) => match m.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (minutes) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
+                                        eprintln!("Error: Line {}, datetime (minutes) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (minutes) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (minutes) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -223,12 +230,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(s) => match s.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (seconds) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, s, error);
+                                        eprintln!("Error: Line {}, datetime (seconds) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, s, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (seconds) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (seconds) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -236,12 +243,12 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                                 Some(m) => match m.parse::<u32>() {
                                     Ok(n) => n,
                                     Err(error) => {
-                                        println!("Error: Line {}, datetime (millis) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
+                                        eprintln!("Error: Line {}, datetime (millis) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
                                         exit(1);
                                     }
                                 },
                                 None => {
-                                    println!("Error: Line {}, datetime (millis) incorrectly formatted (not found): {}", line_number, elm);
+                                    eprintln!("Error: Line {}, datetime (millis) incorrectly formatted (not found): {}", line_number, elm);
                                     exit(1);
                                 }
                             };
@@ -276,15 +283,28 @@ fn begin(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinH
                 let ask: f32 = ask.unwrap();
                 let bid: f32 = bid.unwrap();
                 let row = InputRow { datetime: datetime, ask: ask, bid: bid };
-                tx_rows.send(Some(row));
+                tx_rows.send(Some(row)).unwrap();
             }
-            tx_rows.send(None);
+            tx_rows.send(None).unwrap();
             // Have all lines in the file converted in `rows` variables
 
-            println!("!end");
         }
     });
     (t, rx_rows)
+}
+
+fn add_ask(col: &mut Vec<Column>) {
+    col.push(Column::new(ColumnDescription::Open, AskBid::Ask));
+    col.push(Column::new(ColumnDescription::High, AskBid::Ask));
+    col.push(Column::new(ColumnDescription::Low, AskBid::Ask));
+    col.push(Column::new(ColumnDescription::Close, AskBid::Ask));
+}
+
+fn add_bid(col: &mut Vec<Column>) {
+    col.push(Column::new(ColumnDescription::Open, AskBid::Bid));
+    col.push(Column::new(ColumnDescription::High, AskBid::Bid));
+    col.push(Column::new(ColumnDescription::Low, AskBid::Bid));
+    col.push(Column::new(ColumnDescription::Close, AskBid::Bid));
 }
 
 impl FxTickConv {
@@ -341,7 +361,7 @@ impl FxTickConv {
             }
             description
         };
-        let (row_producer, row_reciver) = begin(input_names, tick);
+        let (row_producer, row_reciver) = input_row_producer(input_names, tick);
 
         FxTickConv {
             time_frame: {
@@ -371,8 +391,6 @@ impl FxTickConv {
                     Some('h') => TimeUnit::Hour,
                     Some('d') => TimeUnit::Day,
                     Some('w') => TimeUnit::Week,
-                    Some('n') => TimeUnit::Month,
-                    Some('y') => TimeUnit::Year,
                     _ => {
                         println!("Error: Unit not valid, see ARGS/TIMEFRAME in --help");
                         exit(1);
@@ -502,20 +520,137 @@ impl FxTickConv {
         }
     }
 
-    pub fn run(mut self) {
-        // let mut output_datetime_column: Column<DateTime<Utc>> =
-        //     Column::new(ColumnDescription::DateTime, None);
-        // let mut output_columns: Vec<Column<f32>> = Vec::new();
+    pub fn run(self) {
+        // build output columns
+        let mut output_datetimes: VecDeque<DateTime<Utc>> = VecDeque::new();
+        let mut output_columns: Vec<Column> = Vec::new();
+        match self.ask_bid {
+            Some(AskBidOption::AskOnly) => { add_ask(&mut output_columns); },
+            Some(AskBidOption::BidOnly) => { add_bid(&mut output_columns); },
+            Some(AskBidOption::BidFirst) => { add_bid(&mut output_columns); add_ask(&mut output_columns); },
+            _ => { add_ask(&mut output_columns); add_bid(&mut output_columns); }
+        };
 
+        //
+        let mut rows_datetime: Vec<DateTime<Utc>> = Vec::new();
+        let mut rows_ask: Vec<f32> = Vec::new();
+        let mut rows_bid: Vec<f32> = Vec::new();
 
-
+        let mut reference_datetime: Option<DateTime<Utc>> = None;
+        let mut previous_datetime: Option<DateTime<Utc>> = None;
 
         while let Some(row) = self.row_reciver.recv().expect("Unable to receive from channel") {
-            println!("{:#?}", row);
+
+            let mut new_tf = false;
+            if let Some(reference) = reference_datetime {
+                // check if the current datetime is over the timeframe
+
+                match  *self.time_frame.unit() {
+                    TimeUnit::Second => {
+                        if row.datetime.signed_duration_since(reference) >= Duration::seconds(self.time_frame.len() as i64) {
+                            reference_datetime = Some(reference + Duration::seconds(self.time_frame.len() as i64));
+                            new_tf = true;
+                        }
+                    },
+                    TimeUnit::Minute => {
+                        if row.datetime.signed_duration_since(reference) >= Duration::minutes(self.time_frame.len() as i64) {
+                            reference_datetime = Some(reference + Duration::minutes(self.time_frame.len() as i64));
+                            new_tf = true;
+                        }
+                    },
+                    TimeUnit::Hour => {
+                        if row.datetime.signed_duration_since(reference) >= Duration::hours(self.time_frame.len() as i64) {
+                            reference_datetime = Some(reference + Duration::hours(self.time_frame.len() as i64));
+                            new_tf = true;
+                        }
+                    },
+                    TimeUnit::Day => {
+                        if row.datetime.signed_duration_since(reference) >= Duration::days(self.time_frame.len() as i64) {
+                            reference_datetime = Some(reference + Duration::days(self.time_frame.len() as i64));
+                            new_tf = true;
+                        }
+                    },
+                    TimeUnit::Week => {
+                        if row.datetime.signed_duration_since(reference) >= Duration::weeks(self.time_frame.len() as i64) {
+                            reference_datetime = Some(reference + Duration::weeks(self.time_frame.len() as i64));
+                            new_tf = true;
+                        }
+                    }
+                };
+            }
+            else {
+                // initialise the reference_datetime
+                reference_datetime = Some(row.datetime);
+                previous_datetime = Some(row.datetime)
+            }
+
+            if new_tf {
+                // process all data
+                output_datetimes.push_front(previous_datetime.unwrap_or(reference_datetime.unwrap()));
+                for col in output_columns.iter_mut() {
+                    let datum: f32 = match *col.ask_bid() {
+                        AskBid::Ask => {
+                            match *col.desc() {
+                                ColumnDescription::Open => rows_ask.iter().next().unwrap().clone(),
+                                ColumnDescription::High => rows_ask.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                                ColumnDescription::Low => rows_ask.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                                ColumnDescription::Close => rows_ask.iter().rev().next().unwrap().clone(),
+                            }
+                        },
+                        AskBid::Bid => {
+                            match *col.desc() {
+                                ColumnDescription::Open => rows_bid.iter().next().unwrap().clone(),
+                                ColumnDescription::High => rows_bid.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                                ColumnDescription::Low => rows_bid.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                                ColumnDescription::Close => rows_bid.iter().rev().next().unwrap().clone(),
+                            }
+                        }
+                    };
+                    col.data().push_front(datum);
+
+                }
+                rows_datetime.clear();
+                rows_ask.clear();
+                rows_bid.clear();
+                previous_datetime = reference_datetime;
+            }
+            rows_datetime.push(row.datetime);
+            rows_ask.push(row.ask);
+            rows_bid.push(row.bid);
+        }
+
+        {
+            // process all data
+            output_datetimes.push_front(previous_datetime.unwrap_or(reference_datetime.unwrap()));
+            for col in output_columns.iter_mut() {
+                let datum: f32 = match *col.ask_bid() {
+                    AskBid::Ask => {
+                        match *col.desc() {
+                            ColumnDescription::Open => rows_ask.iter().next().unwrap().clone(),
+                            ColumnDescription::High => rows_ask.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                            ColumnDescription::Low => rows_ask.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                            ColumnDescription::Close => rows_ask.iter().rev().next().unwrap().clone(),
+                        }
+                    },
+                    AskBid::Bid => {
+                        match *col.desc() {
+                            ColumnDescription::Open => rows_bid.iter().next().unwrap().clone(),
+                            ColumnDescription::High => rows_bid.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                            ColumnDescription::Low => rows_bid.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap().clone(),
+                            ColumnDescription::Close => rows_bid.iter().rev().next().unwrap().clone(),
+                        }
+                    }
+                };
+                col.data().push_front(datum);
+
+            }
         }
 
         self.row_producer.join().unwrap();
+
     }
+
+
 
 
 }

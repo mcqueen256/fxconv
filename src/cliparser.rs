@@ -142,10 +142,10 @@ pub fn parse<'a>() -> ArgMatches<'a> {
                 "is used, the format of the data must be specified. Specifically the date, ",
                 "ask and bid columns. Format options:\n",
                 "    Option  Description\n",
-                "    d       datetime\n",
-                "    a       ask\n",
-                "    b       bid\n",
-                "    x       column filler"
+                "    d       datetime (must have one)\n",
+                "    a       ask (must have one)\n",
+                "    b       bid (must have one)\n",
+                "    x       column filler\n"
             ].join("").as_str())
         )
     .get_matches()

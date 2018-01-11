@@ -21,6 +21,14 @@ enum AskBidOption {
     BidFirst
 }
 
+#[derive(PartialEq)]
+enum TickDescription {
+    DateTime,
+    Ask,
+    Bid,
+    Filler
+}
+
 pub struct FxTickConv {
     time_frame: TimeFrame,
     input_files: Vec<File>,
@@ -29,7 +37,8 @@ pub struct FxTickConv {
     headers: bool,
     precision: Option<u32>,
     start: Option<DateTime<FixedOffset>>,
-    end: Option<DateTime<FixedOffset>>
+    end: Option<DateTime<FixedOffset>>,
+    tick: Vec<TickDescription>
 }
 
 impl FxTickConv {
@@ -204,11 +213,76 @@ impl FxTickConv {
                 else {
                     None
                 }
+            },
+            tick: {
+                let mut description: Vec<TickDescription> = Vec::new();
+                if let Some(tick) = matches.value_of("tick") {
+                    for c in tick.chars() {
+                        match c {
+                            'd' => {
+                                if description.iter().any(|v| *v == TickDescription::DateTime) {
+                                    eprintln!("Error: --tick option contains duplicat 'd' values");
+                                    exit(1);
+                                }
+                                description.push(TickDescription::DateTime);
+                            },
+                            'a' => {
+                                if description.iter().any(|v| *v == TickDescription::Ask) {
+                                    eprintln!("Error: --tick option contains duplicat 'a' values");
+                                    exit(1);
+                                }
+                                description.push(TickDescription::Ask);
+                            },
+                            'b' => {
+                                if description.iter().any(|v| *v == TickDescription::Bid) {
+                                    eprintln!("Error: --tick option contains duplicat 'b' values");
+                                    exit(1);
+                                }
+                                description.push(TickDescription::Bid);
+                            },
+                            'x' => {
+                                description.push(TickDescription::Filler);
+                            },
+                            _ => {
+                                eprintln!("Error: --tick option contains invalid value: '{}'", c);
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+                if ! description.iter().any(|v| *v == TickDescription::DateTime) {
+                    eprintln!("Error: --tick option does not contain 'd' value");
+                    exit(1);
+                }
+                if ! description.iter().any(|v| *v == TickDescription::Ask) {
+                    eprintln!("Error: --tick option does not contain 'a' value");
+                    exit(1);
+                }
+                if ! description.iter().any(|v| *v == TickDescription::Bid) {
+                    eprintln!("Error: --tick option does not contain 'b' value");
+                    exit(1);
+                }
+                description
             }
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(&mut self) {
+        for file in self.input_files.iter_mut() {
+            println!("!start");
+            let size = file.metadata().unwrap().len() as usize;
+            println!("size {}", size);
+            let mut text: Vec<u8> = vec![0; size];
+            match file.read_exact(&mut text) {
+                Ok(_) => {},
+                Err(error) => {
+                    eprintln!("Error: Could not read input file: {}", error);
+                }
+            }
+            let s = String::from_utf8(text).unwrap();
 
+            //println!("'{}'", String::from_utf8(text).unwrap());
+            println!("!end");
+        }
     }
 }

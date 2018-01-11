@@ -5,15 +5,9 @@ pub fn parse<'a>() -> ArgMatches<'a> {
         .version("0.1.0")
         .author("Nicholas Buckeridge <bucknich@gmail.com>")
         .about([
-            "fxconv converts ohlc (or tick) data from an input timeframe to the desired",
-            "output timeframe formatted to specification. The output is streamed to stdout",
-            "unless specified otherwise. When there are time gaps in the data, the timeframe",
-            "at the start of the gap will be trimmed and begin at the end of the gap.",
-            "",
+            "fxtickconv converts tick data to the desired output timeframe formatted to ",
+            "specification. The input and output data columns must/are comma seperated.",
             "Conditions:",
-            " - The input files must have the same timeframe and be specified in order (when the ",
-            "file ends at a time, the next file must start at the next time)",
-            " - Output timeframe must be smaller than the input timeframe.",
             " - If there is more than one file then they must be named so that they can be",
             "      ordered.",
             ""].join("\n").as_str())
@@ -46,25 +40,9 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .value_name("INPUTS")
             .help("The input data file/s. All input files must be of the same format")
         )
-        .arg(Arg::with_name("input-delimiter")
-            .long("input-delimiter")
-            .short("i")
-            .takes_value(true)
-            .value_name("DELIMITER")
-            .conflicts_with("output-delimiter")
-            .help("Input delimiter (whitespace is default)")
-        )
-        .arg(Arg::with_name("output-delimiter")
-            .long("output-delimiter")
-            .short("o")
-            .takes_value(true)
-            .value_name("DELIMITER")
-            .conflicts_with("input-delimiter")
-            .help("Output delimiter (tab is default)")
-        )
         .arg(Arg::with_name("overwrite")
             .long("overwrite")
-            .short("w")
+            .short("o")
             .conflicts_with("no-overwrite")
             .help("Force output overwrite if output file already exists.")
         )
@@ -97,44 +75,6 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .short("d")
             .conflicts_with_all(&["ask-only", "ask-first"])
             .help("Place bid columns before the ask columns.")
-        )
-        .arg(Arg::with_name("format")
-            .long("format")
-            .short("f")
-            .takes_value(true)
-            .value_name("FORMAT")
-            .conflicts_with("tick")
-            .help("Format specifier string for the output, of which describes the format of each \
-                line")
-            .long_help([
-                "Format specifier string for the output, of which describes the format ",
-                "of each line. The line will always start with the date (index), then ",
-                "it will follow the format specifier for the ask, then bid data (unless ",
-                "a flag changes that behaviour.) The formatting options are as follows:\n",
-                "    Option  Description\n",
-                "    o       open\n",
-                "    h       high\n",
-                "    l       low\n",
-                "    c       close\n",
-                "    m       mean\n",
-                "By default, the format specifier is \"ohlc\""
-            ].join("").as_str())
-        )
-        .arg(Arg::with_name("tick")
-            .long("tick")
-            .short("t")
-            .conflicts_with("format")
-            .help("Informs the converter that the input data is tick data")
-            .long_help([
-                "Informs the converter that the input data is tick data. When this option ",
-                "is used, the format of the data must be specified. Specifically the date, ",
-                "ask and bid columns. Format options:\n",
-                "    Option  Description\n",
-                "    d       datetime\n",
-                "    a       ask\n",
-                "    b       bid\n",
-                "    x       column filler"
-            ].join("").as_str())
         )
         .arg(Arg::with_name("headers")
             .long("headers")
@@ -188,6 +128,24 @@ pub fn parse<'a>() -> ArgMatches<'a> {
                 "    skip-weekends - only skip the weekends, continue price during the week\n",
                 "    stop - stop when a gap in timeframes is detected, stop the program with an ",
                 "error\n",
+            ].join("").as_str())
+        )
+        .arg(Arg::with_name("tick")
+            .long("tick")
+            .short("t")
+            .takes_value(true)
+            .default_value("xdab")
+            .required(true)
+            .help("Informs the converter that the input data is tick data")
+            .long_help([
+                "Informs the converter that the input data is tick data. When this option ",
+                "is used, the format of the data must be specified. Specifically the date, ",
+                "ask and bid columns. Format options:\n",
+                "    Option  Description\n",
+                "    d       datetime\n",
+                "    a       ask\n",
+                "    b       bid\n",
+                "    x       column filler"
             ].join("").as_str())
         )
     .get_matches()

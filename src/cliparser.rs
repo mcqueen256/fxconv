@@ -97,8 +97,8 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .long_help([
                 "Specify the time to begin the timeframe series. The specifiers can be as ",
                 "follows:\n",
-                "\"day/month/year hour:minute:second\"\n",
-                "    e.g. \"11/06/1996 15:55:00\"\n"
+                "\"day-month-year hour:minute:secondZ\"\n",
+                "    e.g. \"11-06-1996 15:55:00Z\"\n"
             ].join("").as_str())
         )
         .arg(Arg::with_name("end")
@@ -110,8 +110,8 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .long_help([
                 "Specify the time to end the timeframe series. The specifiers can be as ",
                 "follows:\n",
-                "\"day/month/year hour:minute:second\"\n",
-                "    e.g. \"11/06/1996 15:55:00\"\n"
+                "\"day-month-year hour:minute:secondZ\"\n",
+                "    e.g. \"11-06-1996 15:55:00Z\"\n"
             ].join("").as_str())
         )
         .arg(Arg::with_name("gaps")

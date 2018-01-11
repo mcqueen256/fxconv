@@ -21,12 +21,68 @@ enum AskBidOption {
     BidFirst
 }
 
+#[derive(Debug)]
 #[derive(PartialEq)]
 enum TickDescription {
     DateTime,
     Ask,
     Bid,
     Filler
+}
+
+#[derive(Debug)]
+enum AskBid {
+    Ask,
+    Bid
+}
+
+#[derive(Debug)]
+enum ColumnDescription {
+    DateTime,
+    Open,
+    High,
+    Low,
+    Close,
+    Mean,
+}
+
+#[derive(Debug)]
+struct Column<T> {
+    desc: ColumnDescription,
+    ask_bid: Option<AskBid>,
+    data: VecDeque<T>
+}
+
+impl<T> Column<T> {
+    fn new(desc: ColumnDescription, ask_bid: Option<AskBid>,) -> Column<T> {
+        Column::<T> { desc: desc, ask_bid: ask_bid, data: VecDeque::new() }
+    }
+
+    fn name(&self) -> String {
+        let mut name = String::new();
+        name.push_str(match self.ask_bid {
+            Some(AskBid::Ask) => "Ask ",
+            Some(AskBid::Bid) => "Bid ",
+            None => "",
+        });
+        name.push_str(match self.desc {
+            ColumnDescription::DateTime => "DateTime",
+            ColumnDescription::Open => "Open",
+            ColumnDescription::High => "High",
+            ColumnDescription::Low => "Low",
+            ColumnDescription::Close => "Close",
+            ColumnDescription::Mean => "Mean",
+        });
+        name
+    }
+
+}
+
+#[derive(Debug)]
+struct InputRow {
+    datetime: DateTime<Utc>,
+    ask: f32,
+    bid: f32
 }
 
 pub struct FxTickConv {
@@ -36,10 +92,12 @@ pub struct FxTickConv {
     ask_bid: Option<AskBidOption>,
     headers: bool,
     precision: Option<u32>,
-    start: Option<DateTime<FixedOffset>>,
-    end: Option<DateTime<FixedOffset>>,
-    tick: Vec<TickDescription>
+    start: Option<DateTime<Utc>>,
+    end: Option<DateTime<Utc>>,
+    tick: Vec<TickDescription>,
 }
+
+
 
 impl FxTickConv {
     pub fn new() -> FxTickConv {
@@ -188,7 +246,7 @@ impl FxTickConv {
             },
             start: {
                 if let Some(datetime) = matches.value_of("start") {
-                    match DateTime::parse_from_str(datetime, "%Y/%m/%d %H:%M:%S") {
+                    match datetime.parse::<DateTime<Utc>>() {
                         Ok(dt) => Some(dt),
                         Err(error) => {
                             eprintln!("Error: Start date incorrectly formatted: {}", error);
@@ -202,7 +260,7 @@ impl FxTickConv {
             },
             end: {
                 if let Some(datetime) = matches.value_of("end") {
-                    match DateTime::parse_from_str(datetime, "%Y/%m/%d %H:%M:%S") {
+                    match datetime.parse::<DateTime<Utc>>() {
                         Ok(dt) => Some(dt),
                         Err(error) => {
                             println!("Error: End date incorrectly formatted: {}", error);
@@ -268,6 +326,13 @@ impl FxTickConv {
     }
 
     pub fn run(&mut self) {
+        let mut output_datetime_column: Column<DateTime<Utc>> =
+            Column::new(ColumnDescription::DateTime, None);
+        let mut output_columns: Vec<Column<f32>> = Vec::new();
+
+
+
+
         for file in self.input_files.iter_mut() {
             println!("!start");
             let size = file.metadata().unwrap().len() as usize;
@@ -279,10 +344,162 @@ impl FxTickConv {
                     eprintln!("Error: Could not read input file: {}", error);
                 }
             }
-            let s = String::from_utf8(text).unwrap();
+            let contents = String::from_utf8(text).unwrap();
+            let mut rows: VecDeque<InputRow> = VecDeque::new();
+            for (line_number, line) in contents.split('\n').enumerate() {
+                if line.trim().len() == 0 {
+                    continue;
+                }
+                println!("{:?}", self.tick);
+                println!("{:?}", line);
+                let line = line.trim();
+                let mut datetime: Option<DateTime<Utc>> = None;
+                let mut ask: Option<f32> = None;
+                let mut bid: Option<f32> = None;
+                for (desc, elm) in self.tick.iter().zip(line.split(',')) {
+                    println!("{:?}, '{}'", desc, elm);
+                    match *desc {
+                        TickDescription::DateTime => {
+                            // "20161101 22:30:03.617"
+                            //  ____ [0..5] year
+                            //      __ [5..7] month
+                            //        __[7..9] day
+                            //           __ [10..12] hour
+                            //              __ [13..15] minute
+                            //                 __ [16..18] second
+                            //                    __ [19..] millis
+                            let d_str = String::from(elm);
+                            let year = match d_str.get(0..4) {
+                                Some(y) => match y.parse::<i32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (year) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, y, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (year) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            let month = match d_str.get(4..6) {
+                                Some(m) => match m.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (month) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (month) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            let day = match d_str.get(6..8) {
+                                Some(d) => match d.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (day) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, d, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (day) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            let hour = match d_str.get(9..11) {
+                                Some(h) => match h.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (hour) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, h, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (hour) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            let minute = match d_str.get(12..14) {
+                                Some(m) => match m.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (minutes) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (minutes) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            let second = match d_str.get(15..17) {
+                                Some(s) => match s.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (seconds) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, s, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (seconds) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            let millis = match d_str.get(18..) {
+                                Some(m) => match m.parse::<u32>() {
+                                    Ok(n) => n,
+                                    Err(error) => {
+                                        println!("Error: Line {}, datetime (millis) incorrectly formatted:'{}' -> '{}', {}", line_number, elm, m, error);
+                                        exit(1);
+                                    }
+                                },
+                                None => {
+                                    println!("Error: Line {}, datetime (millis) incorrectly formatted (not found): {}", line_number, elm);
+                                    exit(1);
+                                }
+                            };
+                            Utc.ymd(2014, 7, 8).and_hms_milli(9, 10, 11, 12);
+                            Utc.ymd(2014, 7, 8);
 
-            //println!("'{}'", String::from_utf8(text).unwrap());
+                            datetime = Some(Utc.ymd(year, month, day).and_hms_milli(hour, minute, second, millis));
+                        },
+                        TickDescription::Ask => {
+                            ask = match elm.parse::<f32>() {
+                                Ok(f) => Some(f),
+                                Err(error) => {
+                                    eprintln!("Error: Line {}, column {} not a number: {}", line_number, elm, error);
+                                    exit(1);
+                                }
+                            }
+                        },
+                        TickDescription::Bid => {
+                            bid = match elm.parse::<f32>() {
+                                Ok(f) => Some(f),
+                                Err(error) => {
+                                    eprintln!("Error: Line {}, column {} not a number: {}", line_number, elm, error);
+                                    exit(1);
+                                }
+                            }
+                        },
+                        TickDescription::Filler => {/* skip */}
+                    }
+                }
+
+                let datetime: DateTime<Utc> = datetime.unwrap();
+                let ask: f32 = ask.unwrap();
+                let bid: f32 = bid.unwrap();
+                let row = InputRow { datetime: datetime, ask: ask, bid: bid };
+                rows.push_front(row);
+            }
+
+            // Have all lines in the file converted in `rows` variables
+            println!("{:#?}", rows);
+
             println!("!end");
         }
     }
+
+
 }

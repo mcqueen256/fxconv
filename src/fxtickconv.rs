@@ -11,6 +11,7 @@ use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::mpsc;
 use std::cmp::Ord;
+use std::collections::vec_deque::IterMut;
 
 use chrono::prelude::*;
 use time::Duration;
@@ -115,7 +116,7 @@ pub struct FxTickConv {
 
 
 fn input_row_producer(input_names: Vec<String>, tick: Vec<TickDescription>) -> (thread::JoinHandle<()>, mpsc::Receiver<Option<InputRow>>) {
-    let (tx_rows, rx_rows) = channel();
+    let (tx_rows, rx_rows) = channel(); // TODO:: make buffered channel with configurable limit
     let t = thread::spawn(move || {
         let mut files: Vec<File> = Vec::new();
         for name in input_names.into_iter() {
@@ -520,7 +521,7 @@ impl FxTickConv {
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         // build output columns
         let mut output_datetimes: VecDeque<DateTime<Utc>> = VecDeque::new();
         let mut output_columns: Vec<Column> = Vec::new();
@@ -647,6 +648,19 @@ impl FxTickConv {
         }
 
         self.row_producer.join().unwrap();
+
+        while ! output_datetimes.is_empty() {
+            let mut line: Vec<String> = Vec::new();
+            line.push(output_datetimes.pop_back().unwrap().to_string());
+            for col in output_columns.iter_mut() {
+                line.push(col.data().pop_back().unwrap().to_string());
+            }
+            let line = line.join(",");
+            let line = line.as_bytes();
+            self.output_file.write(line).unwrap();
+            self.output_file.write(b"\n").unwrap();
+        }
+
 
     }
 

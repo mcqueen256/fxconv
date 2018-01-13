@@ -39,3 +39,4 @@ t()
 }
 
 t "Simple test" 1m out00.csv "in00.csv"
+t "gaps" 1s out01.csv "in00.csv"

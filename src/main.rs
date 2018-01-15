@@ -3,16 +3,18 @@ extern crate chrono;
 extern crate time;
 #[macro_use(c)]
 extern crate cute;
+extern crate rand;
 
 
 mod cliparser;
 mod fxconv;
 mod market;
-mod producer;
+mod line_producer;
+// mod producer;
 mod settings;
-mod converter;
-mod grouper;
-mod collector;
+// mod converter;
+// mod grouper;
+// mod collector;
 
 use std::fs::File;
 use std::thread;
@@ -41,24 +43,24 @@ fn main() {
     let tick: Vec<TickDescription> = settings::tick(&matches);
 
     // start the file reader / input data producer
-    let (producer, rx)  = producer::create(input_files, tick);
-    let (grouper, rx)   = grouper::create(rx, time_frame);
-    let (converter, rx) = converter::create(rx, ask_bid);
+    // let (producer, rx)  = producer::create(input_files, tick);
+    // let (grouper, rx)   = grouper::create(rx, time_frame);
+    // let (converter, rx) = converter::create(rx, ask_bid);
 
-    while let Some(mut row) = rx.recv().unwrap() {
-        let mut line: Vec<String> = Vec::new();
-        line.push(row.datetime.to_string());
-        for col in row.column_data.iter_mut() {
-            line.push(col.to_string());
-        }
-        let line = line.join(",");
-        let line = line.as_bytes();
-        output_file.write(line).unwrap();
-        output_file.write(b"\n").unwrap();
-    }
-    handle(producer);
-    handle(grouper);
-    handle(converter);
+    // while let Some(mut row) = rx.recv().unwrap() {
+    //     let mut line: Vec<String> = Vec::new();
+    //     line.push(row.datetime.to_string());
+    //     for col in row.column_data.iter_mut() {
+    //         line.push(col.to_string());
+    //     }
+    //     let line = line.join(",");
+    //     let line = line.as_bytes();
+    //     output_file.write(line).unwrap();
+    //     output_file.write(b"\n").unwrap();
+    // }
+    // handle(producer);
+    // handle(grouper);
+    // handle(converter);
 }
 
 /// Handle thread joins

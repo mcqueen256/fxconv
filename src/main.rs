@@ -12,8 +12,11 @@ mod producer;
 mod settings;
 mod converter;
 mod grouper;
+mod collector;
 
 use std::fs::File;
+use std::thread;
+use std::process::exit;
 
 use chrono::prelude::*;
 
@@ -53,7 +56,23 @@ fn main() {
         output_file.write(line).unwrap();
         output_file.write(b"\n").unwrap();
     }
-    producer.join().unwrap();
-    grouper.join().unwrap();
-    converter.join().unwrap();
+    handle(producer);
+    handle(grouper);
+    handle(converter);
+}
+
+/// Handle thread joins
+pub fn handle(t: thread::JoinHandle<()>) {
+    let r: thread::Result<()> = t.join();
+    match r {
+        Ok(_) => {},
+        Err(e) => {
+            if let Some(e) = e.downcast_ref::<&'static str>() {
+                eprintln!("Error: {}", e);
+            } else {
+                eprintln!("Unkown Error: {:?}", e);
+            }
+            exit(1);
+        }
+    }
 }

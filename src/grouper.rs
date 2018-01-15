@@ -13,7 +13,7 @@ pub struct TickGroup {
     pub bids: Vec<f32>
 }
 
-pub fn create(rx_producer: Receiver<Option<InputRow>>, time_frame: TimeFrame)  -> (thread::JoinHandle<()>, Receiver<Option<TickGroup>>){
+pub fn create(rx_producer: Receiver<Option<InputRow>>, time_frame: TimeFrame)  -> (thread::JoinHandle<()>, Receiver<Option<TickGroup>>) {
     let (tx_grouper, rx_grouper) = channel(); // TODO:: make buffered channel with configurable limit
     let grouper_thread = thread::spawn(move || {
 

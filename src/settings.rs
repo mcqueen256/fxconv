@@ -28,8 +28,8 @@ pub fn time_frame(matches: &ArgMatches) -> TimeFrame {
     }
     // check the string only has one non-digit char
     if tf.len() != digits + 1 {
-        eprintln!("Error: Timeframe is incorrectly formatted: '{}'", tf);
-        exit(1);
+        let e = format!("Timeframe is incorrectly formatted: '{}'", tf);
+        panic!(e);
     }
     // Set up time frame variables
     let length = tf[0..digits].to_string().parse::<usize>().unwrap();
@@ -39,10 +39,7 @@ pub fn time_frame(matches: &ArgMatches) -> TimeFrame {
         Some('h') => TimeUnit::Hour,
         Some('d') => TimeUnit::Day,
         Some('w') => TimeUnit::Week,
-        _ => {
-            eprintln!("Error: Unit not valid, see ARGS/TIMEFRAME in --help");
-            exit(1);
-        }
+        _ => panic!("Unit not valid, see ARGS/TIMEFRAME in --help")
     };
     // Set time_frame
     TimeFrame::new( length, unit )
@@ -53,8 +50,7 @@ pub fn output_file(matches: &ArgMatches) -> File {
     let path = Path::new(name);
     //check if dir
     if path.file_name() == Option::None {
-        eprintln!("Error: Output file is not a regular file");
-        exit(1);
+        panic!("Output file is not a regular file");
     }
     // check if the output already exists
     if path.exists() {
@@ -87,33 +83,22 @@ pub fn output_file(matches: &ArgMatches) -> File {
                     "no" => { no(); break; },
                     "No" => { no(); break; },
                     _ => {
-                        println!("Not a valid option '{}' (use Yes or No)", answer.trim());
+                        let e = format!("Not a valid option '{}' (use Yes or No)", answer.trim());
+                        panic!(e);
                     }
                 }
             }
         }
     }
     // write to file, overwrite if it already exists
-    match OpenOptions::new().create(true).write(true).open(name) {
-        Ok(file) => file,
-        Err(error) => {
-            eprintln!("Error: Could not open output file '{}': {}", name, error);
-            exit(1);
-        }
-    }
+    OpenOptions::new().create(true).write(true).open(name).expect(&format!("Could not open output file '{}'", name))
 }
 
 pub fn input_files(matches: &ArgMatches) -> Vec<File> {
     let input_names: Vec<String> = matches.values_of("inputs").unwrap().map(String::from).collect();
     let mut files: Vec<File> = Vec::new();
     for name in input_names.into_iter() {
-        let file = match File::open(name.as_str()) {
-            Ok(file) => file,
-            Err(error) => {
-                eprintln!("Error: Connot open file '{}': {}", name, error);
-                exit(1);
-            }
-        };
+        let file = File::open(name.as_str()).expect(&format!("Could not open output file '{}'", name));
         files.push(file);
     }
     files
@@ -142,13 +127,7 @@ pub fn headers(matches: &ArgMatches) -> bool{
 
 pub fn precision(matches: &ArgMatches) -> Option<u32> {
     if let Some(precision) = matches.value_of("precision") {
-        let precision = match precision.parse::<u32>() {
-            Ok(p) => p,
-            Err(error) => {
-                eprintln!("Error: Precision is not a number {}", error);
-                exit(1);
-            }
-        };
+        let precision = precision.parse::<u32>().expect("Precision is not a number");
         Some(precision)
     }
     else {
@@ -159,13 +138,7 @@ pub fn precision(matches: &ArgMatches) -> Option<u32> {
 
 pub fn start(matches: &ArgMatches) -> Option<DateTime<Utc>> {
     if let Some(datetime) = matches.value_of("start") {
-        match datetime.parse::<DateTime<Utc>>() {
-            Ok(dt) => Some(dt),
-            Err(error) => {
-                eprintln!("Error: Start date incorrectly formatted: {}", error);
-                exit(1);
-            }
-        }
+        Some(datetime.parse::<DateTime<Utc>>().expect("Start date incorrectly formatted"))
     }
     else {
         None
@@ -174,13 +147,7 @@ pub fn start(matches: &ArgMatches) -> Option<DateTime<Utc>> {
 
 pub fn end(matches: &ArgMatches) -> Option<DateTime<Utc>> {
     if let Some(datetime) = matches.value_of("end") {
-        match datetime.parse::<DateTime<Utc>>() {
-            Ok(dt) => Some(dt),
-            Err(error) => {
-                println!("Error: End date incorrectly formatted: {}", error);
-                exit(1);
-            }
-        }
+        Some(datetime.parse::<DateTime<Utc>>().expect("End date incorrectly formatted"))
     }
     else {
         None
@@ -194,22 +161,19 @@ pub fn tick(matches: &ArgMatches) -> Vec<TickDescription> {
             match c {
                 'd' => {
                     if description.iter().any(|v| *v == TickDescription::DateTime) {
-                        eprintln!("Error: --tick option contains duplicat 'd' values");
-                        exit(1);
+                        panic!("Error: --tick option contains duplicat 'd' values");
                     }
                     description.push(TickDescription::DateTime);
                 },
                 'a' => {
                     if description.iter().any(|v| *v == TickDescription::Ask) {
-                        eprintln!("Error: --tick option contains duplicat 'a' values");
-                        exit(1);
+                        panic!("Error: --tick option contains duplicat 'a' values");
                     }
                     description.push(TickDescription::Ask);
                 },
                 'b' => {
                     if description.iter().any(|v| *v == TickDescription::Bid) {
-                        eprintln!("Error: --tick option contains duplicat 'b' values");
-                        exit(1);
+                        panic!("Error: --tick option contains duplicat 'b' values");
                     }
                     description.push(TickDescription::Bid);
                 },
@@ -217,23 +181,19 @@ pub fn tick(matches: &ArgMatches) -> Vec<TickDescription> {
                     description.push(TickDescription::Filler);
                 },
                 _ => {
-                    eprintln!("Error: --tick option contains invalid value: '{}'", c);
-                    exit(1);
+                    panic!("Error: --tick option contains invalid value: '{}'", c);
                 }
             }
         }
     }
     if ! description.iter().any(|v| *v == TickDescription::DateTime) {
-        eprintln!("Error: --tick option does not contain 'd' value");
-        exit(1);
+        panic!("Error: --tick option does not contain 'd' value");
     }
     if ! description.iter().any(|v| *v == TickDescription::Ask) {
-        eprintln!("Error: --tick option does not contain 'a' value");
-        exit(1);
+        panic!("Error: --tick option does not contain 'a' value");
     }
     if ! description.iter().any(|v| *v == TickDescription::Bid) {
-        eprintln!("Error: --tick option does not contain 'b' value");
-        exit(1);
+        panic!("Error: --tick option does not contain 'b' value");
     }
     description
 }

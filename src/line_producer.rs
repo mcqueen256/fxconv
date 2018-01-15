@@ -1,10 +1,16 @@
 use std::fs::File;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::io::prelude::*;
+use std::thread;
 
 
-pub fn create() {
-
+/// From the input files, generates rows of the correct format
+pub fn create(input_files: Vec<File>) -> (thread::JoinHandle<()>, Receiver<Option<(usize, String)>>) {
+    let (tx_rows, rx_rows) = channel(); // TODO:: make buffered channel with configurable limit
+    let t = thread::Builder::new().name("producer".to_string()).spawn(move || {
+        line_producer(input_files, tx_rows);
+    });
+    (t.expect("Thread did not spawn correctly"), rx_rows)
 }
 
 fn line_producer(mut input_files: Vec<File>, tx_rows: Sender<Option<(usize, String)>>) {
@@ -31,7 +37,6 @@ fn line_producer(mut input_files: Vec<File>, tx_rows: Sender<Option<(usize, Stri
 mod tests {
     use super::*;
     use std::fs::OpenOptions;
-    use std::fs::remove_file;
     use rand::random;
     //rand::thread_rng().gen_range(1, 101);
 

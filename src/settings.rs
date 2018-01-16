@@ -10,7 +10,7 @@ use clap::ArgMatches;
 use market::timeframe::TimeFrame;
 use market::timeframe::TimeUnit;
 use fxconv::AskBidOption;
-use fxconv::TickDescription;
+use formatter::TickDescription;
 
 pub fn time_frame(matches: &ArgMatches) -> TimeFrame {
     let tf = matches.value_of("timeframe").unwrap();
@@ -161,19 +161,19 @@ pub fn tick(matches: &ArgMatches) -> Vec<TickDescription> {
             match c {
                 'd' => {
                     if description.iter().any(|v| *v == TickDescription::DateTime) {
-                        panic!("Error: --tick option contains duplicat 'd' values");
+                        panic!("--tick option contains duplicat 'd' values");
                     }
                     description.push(TickDescription::DateTime);
                 },
                 'a' => {
                     if description.iter().any(|v| *v == TickDescription::Ask) {
-                        panic!("Error: --tick option contains duplicat 'a' values");
+                        panic!("--tick option contains duplicat 'a' values");
                     }
                     description.push(TickDescription::Ask);
                 },
                 'b' => {
                     if description.iter().any(|v| *v == TickDescription::Bid) {
-                        panic!("Error: --tick option contains duplicat 'b' values");
+                        panic!("--tick option contains duplicat 'b' values");
                     }
                     description.push(TickDescription::Bid);
                 },
@@ -181,19 +181,19 @@ pub fn tick(matches: &ArgMatches) -> Vec<TickDescription> {
                     description.push(TickDescription::Filler);
                 },
                 _ => {
-                    panic!("Error: --tick option contains invalid value: '{}'", c);
+                    panic!("--tick option contains invalid value: '{}'", c);
                 }
             }
         }
     }
     if ! description.iter().any(|v| *v == TickDescription::DateTime) {
-        panic!("Error: --tick option does not contain 'd' value");
+        panic!("--tick option does not contain 'd' value");
     }
     if ! description.iter().any(|v| *v == TickDescription::Ask) {
-        panic!("Error: --tick option does not contain 'a' value");
+        panic!("--tick option does not contain 'a' value");
     }
     if ! description.iter().any(|v| *v == TickDescription::Bid) {
-        panic!("Error: --tick option does not contain 'b' value");
+        panic!("--tick option does not contain 'b' value");
     }
     description
 }

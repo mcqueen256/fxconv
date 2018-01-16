@@ -10,6 +10,7 @@ mod cliparser;
 mod fxconv;
 mod market;
 mod line_producer;
+mod formatter;
 // mod producer;
 mod settings;
 // mod converter;
@@ -25,7 +26,7 @@ use chrono::prelude::*;
 
 use market::timeframe::TimeFrame;
 use fxconv::AskBidOption;
-use fxconv::TickDescription;
+use formatter::TickDescription;
 use cliparser::parse;
 
 use std::io::prelude::*;
@@ -50,8 +51,10 @@ fn main() {
 
         // start the file reader / input data producer
         let (line_producer, rx) = line_producer::create(input_files);
+        let (formatter, _rx) = formatter::create(rx, tick);
 
         handle(line_producer);
+        handle(formatter);
     });
     handle(phantom.unwrap());
 

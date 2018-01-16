@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::thread;
 
 
-/// From the input files, generates rows of the correct format
+/// From the input files, generates lines from file
 pub fn create(input_files: Vec<File>) -> (thread::JoinHandle<()>, Receiver<Option<(usize, String)>>) {
     let (tx_rows, rx_rows) = channel(); // TODO:: make buffered channel with configurable limit
     let t = thread::Builder::new().name("producer".to_string()).spawn(move || {

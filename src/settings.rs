@@ -4,7 +4,6 @@ use std::path::Path;
 use std::io;
 use std::fs::OpenOptions;
 
-use chrono::prelude::*;
 use clap::ArgMatches;
 
 use market::timeframe::TimeFrame;
@@ -123,35 +122,6 @@ pub fn ask_bid(matches: &ArgMatches) -> Option<AskBidOption> {
 
 pub fn headers(matches: &ArgMatches) -> bool{
     matches.is_present("headers")
-}
-
-pub fn precision(matches: &ArgMatches) -> Option<u32> {
-    if let Some(precision) = matches.value_of("precision") {
-        let precision = precision.parse::<u32>().expect("Precision is not a number");
-        Some(precision)
-    }
-    else {
-        None
-    }
-
-}
-
-pub fn start(matches: &ArgMatches) -> Option<DateTime<Utc>> {
-    if let Some(datetime) = matches.value_of("start") {
-        Some(datetime.parse::<DateTime<Utc>>().expect("Start date incorrectly formatted"))
-    }
-    else {
-        None
-    }
-}
-
-pub fn end(matches: &ArgMatches) -> Option<DateTime<Utc>> {
-    if let Some(datetime) = matches.value_of("end") {
-        Some(datetime.parse::<DateTime<Utc>>().expect("End date incorrectly formatted"))
-    }
-    else {
-        None
-    }
 }
 
 pub fn tick(matches: &ArgMatches) -> Vec<TickDescription> {

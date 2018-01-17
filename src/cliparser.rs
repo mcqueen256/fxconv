@@ -81,55 +81,6 @@ pub fn parse<'a>() -> ArgMatches<'a> {
             .short("h")
             .help("Prepend commented (#) lines describing the data at the top of the file")
         )
-        .arg(Arg::with_name("precision")
-            .long("precision")
-            .short("p")
-            .takes_value(true)
-            .value_name("PRECISION")
-            .help("Number of decimal places to allow per data column")
-        )
-        .arg(Arg::with_name("start")
-            .long("start")
-            .short("s")
-            .takes_value(true)
-            .value_name("DATETIME")
-            .help("Specify the time to begin the timeframe series")
-            .long_help([
-                "Specify the time to begin the timeframe series. The specifiers can be as ",
-                "follows:\n",
-                "\"day-month-year hour:minute:secondZ\"\n",
-                "    e.g. \"11-06-1996 15:55:00Z\"\n"
-            ].join("").as_str())
-        )
-        .arg(Arg::with_name("end")
-            .long("end")
-            .short("e")
-            .takes_value(true)
-            .value_name("DATETIME")
-            .help("Specify the time to end the timeframe series")
-            .long_help([
-                "Specify the time to end the timeframe series. The specifiers can be as ",
-                "follows:\n",
-                "\"day-month-year hour:minute:secondZ\"\n",
-                "    e.g. \"11-06-1996 15:55:00Z\"\n"
-            ].join("").as_str())
-        )
-        .arg(Arg::with_name("gaps")
-            .long("gaps")
-            .short("g")
-            .default_value("skip")
-            .possible_values(&["skip", "continue", "skip-weekends", "stop"])
-            .help("Specify the action to take when encountering a gap in timeframes")
-            .long_help([
-                "Specify the action to take when encountering a gap in timeframes. ",
-                "The actions inclue:\n",
-                "    skip - skip the missing timeframes\n",
-                "    continue - fill in the missing timeframes with the last price\n",
-                "    skip-weekends - only skip the weekends, continue price during the week\n",
-                "    stop - stop when a gap in timeframes is detected, stop the program with an ",
-                "error\n",
-            ].join("").as_str())
-        )
         .arg(Arg::with_name("tick")
             .long("tick")
             .short("t")

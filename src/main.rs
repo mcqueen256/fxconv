@@ -13,7 +13,7 @@ mod line_producer;
 mod formatter;
 // mod producer;
 mod settings;
-// mod converter;
+mod converter;
 mod grouper;
 // mod collector;
 
@@ -44,40 +44,38 @@ fn main() {
         let input_files: Vec<File> = settings::input_files(&matches);
         let ask_bid: Option<AskBidOption> = settings::ask_bid(&matches);
         let headers: bool = settings::headers(&matches);
-        let precision: Option<u32> = settings::precision(&matches);
-        let start: Option<DateTime<Utc>> = settings::start(&matches);
-        let end: Option<DateTime<Utc>> = settings::end(&matches);
         let tick: Vec<TickDescription> = settings::tick(&matches);
 
         // start the file reader / input data producer
         let (line_producer, rx) = line_producer::create(input_files);
         let (formatter, rx) = formatter::create(rx, tick);
-        let (grouper, _rx)   = grouper::create(rx, time_frame);
+        let (grouper, rx)   = grouper::create(rx, time_frame);
+        let (converter, rx) = converter::create(rx, ask_bid);
+
+        if headers {
+            let ask = "ask,ask,ask,ask";
+            let bid = "bid,bid,bid,bid";
+
+        }
+
+        while let Some(mut row) = rx.recv().unwrap() {
+            let mut line: Vec<String> = Vec::new();
+            line.push(row.datetime.to_string());
+            for col in row.column_data.iter_mut() {
+                line.push(col.to_string());
+            }
+            let line = line.join(",");
+            let line = line.as_bytes();
+            output_file.write(line).expect("Could not write to file");
+            output_file.write(b"\n").expect("Could not write to file");
+        }
 
         handle(line_producer);
         handle(formatter);
+        handle(grouper);
+        handle(converter);
     });
     handle(phantom.unwrap());
-
-
-    // let (producer, rx)  = producer::create(input_files, tick);
-    // let (grouper, rx)   = grouper::create(rx, time_frame);
-    // let (converter, rx) = converter::create(rx, ask_bid);
-
-    // while let Some(mut row) = rx.recv().unwrap() {
-    //     let mut line: Vec<String> = Vec::new();
-    //     line.push(row.datetime.to_string());
-    //     for col in row.column_data.iter_mut() {
-    //         line.push(col.to_string());
-    //     }
-    //     let line = line.join(",");
-    //     let line = line.as_bytes();
-    //     output_file.write(line).unwrap();
-    //     output_file.write(b"\n").unwrap();
-    // }
-    // handle(producer);
-    // handle(grouper);
-    // handle(converter);
 }
 
 fn handle(t: thread::JoinHandle<()>) {

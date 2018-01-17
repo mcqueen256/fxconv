@@ -1,8 +1,6 @@
 extern crate clap;
 extern crate chrono;
 extern crate time;
-#[macro_use(c)]
-extern crate cute;
 extern crate rand;
 
 
@@ -21,8 +19,6 @@ use std::fs::File;
 use std::thread;
 use std::process::exit;
 use std::panic;
-
-use chrono::prelude::*;
 
 use market::timeframe::TimeFrame;
 use fxconv::AskBidOption;
@@ -46,17 +42,50 @@ fn main() {
         let headers: bool = settings::headers(&matches);
         let tick: Vec<TickDescription> = settings::tick(&matches);
 
+
+                if headers {
+                    let ask = "ask,ask,ask,ask";
+                    let bid = "bid,bid,bid,bid";
+                    let ohlc = "open,high,low,close";
+                    let mut top = String::from(",");
+                    let mut bottom = String::from("datetime,");
+                    match ask_bid {
+                        Some(AskBidOption::AskOnly) => {
+                            top.push_str(ask);
+                            bottom.push_str(ohlc);
+                        },
+                        Some(AskBidOption::BidOnly) => {
+                            top.push_str(ask);
+                            bottom.push_str(ohlc);
+                        },
+                        Some(AskBidOption::BidFirst) => {
+                            top.push_str(bid);
+                            top.push_str(",");
+                            top.push_str(ask);
+                            bottom.push_str(ohlc);
+                            bottom.push_str(",");
+                            bottom.push_str(ohlc);
+                        },
+                        _ => {
+                            top.push_str(ask);
+                            top.push_str(",");
+                            top.push_str(bid);
+                            bottom.push_str(ohlc);
+                            bottom.push_str(",");
+                            bottom.push_str(ohlc);
+                        },
+                    }
+                    output_file.write(top.as_bytes()).expect("Cannot write to output");
+                    output_file.write(b"\n").expect("Cannot write to output");
+                    output_file.write(bottom.as_bytes()).expect("Cannot write to output");
+                    output_file.write(b"\n").expect("Cannot write to output");
+                }
+
         // start the file reader / input data producer
         let (line_producer, rx) = line_producer::create(input_files);
         let (formatter, rx) = formatter::create(rx, tick);
         let (grouper, rx)   = grouper::create(rx, time_frame);
         let (converter, rx) = converter::create(rx, ask_bid);
-
-        if headers {
-            let ask = "ask,ask,ask,ask";
-            let bid = "bid,bid,bid,bid";
-
-        }
 
         while let Some(mut row) = rx.recv().unwrap() {
             let mut line: Vec<String> = Vec::new();

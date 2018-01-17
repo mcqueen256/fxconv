@@ -14,7 +14,7 @@ mod formatter;
 // mod producer;
 mod settings;
 // mod converter;
-// mod grouper;
+mod grouper;
 // mod collector;
 
 use std::fs::File;
@@ -51,7 +51,8 @@ fn main() {
 
         // start the file reader / input data producer
         let (line_producer, rx) = line_producer::create(input_files);
-        let (formatter, _rx) = formatter::create(rx, tick);
+        let (formatter, rx) = formatter::create(rx, tick);
+        let (grouper, _rx)   = grouper::create(rx, time_frame);
 
         handle(line_producer);
         handle(formatter);

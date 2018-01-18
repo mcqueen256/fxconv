@@ -2,6 +2,8 @@ extern crate clap;
 extern crate chrono;
 extern crate time;
 extern crate rand;
+extern crate thread_id;
+extern crate nix;
 
 
 mod cliparser;
@@ -27,12 +29,15 @@ use cliparser::parse;
 
 use std::io::prelude::*;
 
+use nix::sys::pthread::pthread_self;
+
 fn main() {
     // setup error handling
     panic::set_hook(Box::new(|_info| { /* do nothing */ }));
 
     // run entire program in a thread to catch panics
     let phantom = thread::Builder::new().name("phantom_main".to_string()).spawn(move || {
+        println!("In phantom_main {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
         // parse and extract application settings (see --help)
         let matches = parse();
         let time_frame: TimeFrame = settings::time_frame(&matches);
@@ -87,6 +92,11 @@ fn main() {
         let (grouper, rx)   = grouper::create(rx, time_frame);
         let (converter, rx) = converter::create(rx, ask_bid);
 
+        println!("line_producer: {:#?}", line_producer.thread().id());
+        println!("formatter: {:#?}", formatter.thread().id());
+        println!("grouper: {:#?}", grouper.thread().id());
+        println!("converter: {:#?}", converter.thread().id());
+
         while let Some(mut row) = rx.recv().unwrap() {
             let mut line: Vec<String> = Vec::new();
             line.push(row.datetime.to_string());
@@ -104,7 +114,7 @@ fn main() {
         handle(grouper);
         handle(converter);
     });
-    handle(phantom.unwrap());
+    handle(phantom.expect("Thread did not spawn correctly"));
 }
 
 fn handle(t: thread::JoinHandle<()>) {

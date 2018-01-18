@@ -1,10 +1,13 @@
 use chrono::prelude::*;
 use fxconv::AskBidOption;
 use std::thread;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::sync_channel;
 use fxconv::AskBid;
 use grouper::TickGroup;
 use std::sync::mpsc::{Receiver};
+use settings::CHANNEL_BUFFER;
+use thread_id;
+use nix::sys::pthread::pthread_self;
 
 pub struct Row {
     pub datetime: DateTime<Utc>,
@@ -63,8 +66,9 @@ pub fn create(rx_grouper: Receiver<Option<TickGroup>>, ask_bid: Option<AskBidOpt
         _ => &[AskBid::Ask, AskBid::Bid]
     };
 
-    let (tx_converter, rx_converter) = channel(); // TODO:: make buffered channel with configurable limit
-    let converter_thread = thread::spawn(move || {
+    let (tx_converter, rx_converter) = sync_channel(CHANNEL_BUFFER);
+    let converter_thread = thread::Builder::new().name("converter".to_string()).spawn(move || {
+        println!("In converter {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
 
         while let Some(group) = rx_grouper.recv().expect("Unable to receive from channel") {
 
@@ -77,5 +81,5 @@ pub fn create(rx_grouper: Receiver<Option<TickGroup>>, ask_bid: Option<AskBidOpt
         tx_converter.send(None).unwrap();
     });
 
-    (converter_thread, rx_converter)
+    (converter_thread.expect("Thread did not spawn correctly"), rx_converter)
 }

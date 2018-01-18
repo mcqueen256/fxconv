@@ -1,8 +1,11 @@
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::str::FromStr;
 use std::fmt::Display;
 use std::thread;
 use chrono::prelude::*;
+use settings::CHANNEL_BUFFER;
+use thread_id;
+use nix::sys::pthread::pthread_self;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -23,8 +26,9 @@ pub struct InputRow {
 
 /// From the input lines, generates tick data
 pub fn create(rx_producer: Receiver<Option<(usize, String)>>, tick: Vec<TickDescription>) -> (thread::JoinHandle<()>, Receiver<Option<InputRow>>) {
-    let (tx_ticks, rx_ticks) = channel(); // TODO:: make buffered channel with configurable limit
-    let t = thread::Builder::new().name("producer".to_string()).spawn(move || {
+    let (tx_ticks, rx_ticks) = sync_channel(CHANNEL_BUFFER);
+    let t = thread::Builder::new().name("formatter".to_string()).spawn(move || {
+        println!("In formatter {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
         formatter(tx_ticks, rx_producer, tick);
     });
     (t.expect("Thread did not spawn correctly"), rx_ticks)
@@ -48,7 +52,7 @@ fn extract<T>(number_str: Option<&str>, line_number: usize, elm: &str, unit: &st
 }
 
 /// Invarent: line must not be empty
-fn formatter(tx_formatter: Sender<Option<InputRow>>, rx_producer: Receiver<Option<(usize, String)>>, tick: Vec<TickDescription>) {
+fn formatter(tx_formatter: SyncSender<Option<InputRow>>, rx_producer: Receiver<Option<(usize, String)>>, tick: Vec<TickDescription>) {
     while let Some((line_number, line)) = rx_producer.recv().expect("Unable to receive from channel") {
         let mut datetime: Option<DateTime<Utc>> = None;
         let mut ask: Option<f32> = None;
@@ -69,14 +73,13 @@ fn formatter(tx_formatter: Sender<Option<InputRow>>, rx_producer: Receiver<Optio
                     //              __ [13..15] minute
                     //                 __ [16..18] second
                     //                    __ [19..] millis
-                    let d_str = String::from(elm);
-                    let year: i32 = extract(d_str.get(0..4), line_number, elm, "year");
-                    let month: u32 = extract(d_str.get(4..6), line_number, elm, "month");
-                    let day: u32 = extract(d_str.get(6..8), line_number, elm, "day");
-                    let hour: u32 = extract(d_str.get(9..11), line_number, elm, "hour");
-                    let minute: u32 = extract(d_str.get(12..14), line_number, elm, "minute");
-                    let second: u32 = extract(d_str.get(15..17), line_number, elm, "second");
-                    let millis: u32 = extract(d_str.get(18..), line_number, elm, "millis");
+                    let year: i32 = extract(elm.get(0..4), line_number, elm, "year");
+                    let month: u32 = extract(elm.get(4..6), line_number, elm, "month");
+                    let day: u32 = extract(elm.get(6..8), line_number, elm, "day");
+                    let hour: u32 = extract(elm.get(9..11), line_number, elm, "hour");
+                    let minute: u32 = extract(elm.get(12..14), line_number, elm, "minute");
+                    let second: u32 = extract(elm.get(15..17), line_number, elm, "second");
+                    let millis: u32 = extract(elm.get(18..), line_number, elm, "millis");
                     datetime = Some(Utc.ymd(year, month, day).and_hms_milli(hour, minute, second, millis));
                 },
                 TickDescription::Ask => {
@@ -85,7 +88,7 @@ fn formatter(tx_formatter: Sender<Option<InputRow>>, rx_producer: Receiver<Optio
                 TickDescription::Bid => {
                     bid = Some(elm.parse::<f32>().expect(&format!("Line {}, column {} not a number", line_number, elm)));
                 },
-                TickDescription::Filler => {/* skip */}
+                TickDescription::Filler => { /* skip */ }
             }
         }
 
@@ -94,9 +97,9 @@ fn formatter(tx_formatter: Sender<Option<InputRow>>, rx_producer: Receiver<Optio
             panic!("Invalid line {}: '{}'", line_number, line);
         }
         // errors should not occer
-        let datetime: DateTime<Utc> = datetime.expect("Could not extract datetime, was None");
-        let ask: f32 = ask.expect("Could not extract ask, was None");
-        let bid: f32 = bid.expect("Could not extract bid, was None");
+        let datetime: DateTime<Utc> = datetime.unwrap();
+        let ask: f32 = ask.unwrap();
+        let bid: f32 = bid.unwrap();
         let row = InputRow { datetime: datetime, ask: ask, bid: bid };
         tx_formatter.send(Some(row)).expect("Could not send row data from the producer");
     }
@@ -119,8 +122,8 @@ mod test {
 
     #[test]
     fn normal_use_one_line() {
-        let (tx, rx) = channel();
-        let (txf, rxf) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, rxf) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,20161101 22:30:05.632,0.76551,0.76541")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -134,8 +137,8 @@ mod test {
 
     #[test]
     fn normal_use_more_lines() {
-        let (tx, rx) = channel();
-        let (txf, rxf) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, rxf) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,20161101 22:30:05.632,0.76551,0.76541")))).expect("Could not send line");
         tx.send(Some((1, String::from("AUD/USD,20161101 22:30:06.473,0.76555,0.76545")))).expect("Could not send line");
         tx.send(Some((1, String::from("AUD/USD,20161101 22:30:06.890,0.76549,0.76538")))).expect("Could not send line");
@@ -162,8 +165,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Line 1, year data incorrectly formatted (not found): ")]
     fn missing_datetime() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,,0.76551,0.76541")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -172,8 +175,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Invalid line 1: 'AUD/USD,0.76551,0.76541'")]
     fn missing_element() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,0.76551,0.76541")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -182,8 +185,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Invalid line 1: 'Line 1, column  not a number: ParseFloatError { kind: Empty }'")]
     fn missing_ask() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("Line 1, column  not a number: ParseFloatError { kind: Empty }")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -192,8 +195,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Invalid line 1: 'AUD/USD,20161101 22:30:05.632,0.76551'")]
     fn missing_bid() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,20161101 22:30:05.632,0.76551")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -202,8 +205,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Line 1, minute data incorrectly formatted:'20161101 230:05.632' -> ':0'")]
     fn faulty_datetime() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,20161101 230:05.632,0.76551,0.76541")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -212,8 +215,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Invalid line 1: 'AUD/USD,20161101 22:30:05.632,0.76551,0.76541,0.7364,0.9347'")]
     fn more_cols() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("AUD/USD,20161101 22:30:05.632,0.76551,0.76541,0.7364,0.9347")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -222,8 +225,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Invalid line 1: '20161101 22:30:05.632,0.76551,0.76541'")]
     fn less_cols() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from("20161101 22:30:05.632,0.76551,0.76541")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());
@@ -232,8 +235,8 @@ mod test {
     #[test]
     #[should_panic(expected = "Line 1, year data incorrectly formatted (not found): ")]
     fn empty_columns() {
-        let (tx, rx) = channel();
-        let (txf, _) = channel();
+        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (txf, _) = sync_channel(CHANNEL_BUFFER);
         tx.send(Some((1, String::from(",,,")))).expect("Could not send line");
         tx.send(None).expect("Cannot send None");
         formatter(txf, rx, gen_td());

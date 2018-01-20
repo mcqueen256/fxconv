@@ -1,23 +1,19 @@
 use std::fs::File;
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::io::prelude::*;
 use std::thread;
-use settings::CHANNEL_BUFFER;
-use thread_id;
-use nix::sys::pthread::pthread_self;
 
 
 /// From the input files, generates lines from file
 pub fn create(input_files: Vec<File>) -> (thread::JoinHandle<()>, Receiver<Option<(usize, String)>>) {
-    let (tx_rows, rx_rows) = sync_channel(CHANNEL_BUFFER);
+    let (tx_rows, rx_rows) = channel();
     let t = thread::Builder::new().name("producer".to_string()).spawn(move || {
-        println!("In producer {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
         line_producer(input_files, tx_rows);
     });
     (t.expect("Thread did not spawn correctly"), rx_rows)
 }
 
-fn line_producer(mut input_files: Vec<File>, tx_rows: SyncSender<Option<(usize, String)>>) {
+fn line_producer(mut input_files: Vec<File>, tx_rows: Sender<Option<(usize, String)>>) {
     for file in input_files.iter_mut() {
         let size = file.metadata().expect("Cannot find file metadata").len() as usize;
         let mut text: Vec<u8> = vec![0; size];
@@ -63,7 +59,7 @@ mod tests {
     #[test]
     fn no_line_one_file() {
         let empty_file = file_with("");
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![empty_file], tx);
         assert_eq!(rx.recv().expect("recv failed"), None);
     }
@@ -71,7 +67,7 @@ mod tests {
     #[test]
     fn incomplete_line_one_file() {
         let empty_file = file_with("this line has no newline ending");
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![empty_file], tx);
         assert_eq!(rx.recv().expect("recv failed"), Some((1, String::from("this line has no newline ending"))));
         assert_eq!(rx.recv().expect("recv failed"), None);
@@ -79,21 +75,21 @@ mod tests {
 
     #[test]
     fn no_line_two_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![file_with(""), file_with("")], tx);
         assert_eq!(rx.recv().expect("recv failed"), None);
     }
 
     #[test]
     fn no_line_three_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![file_with(""), file_with(""), file_with("")], tx);
         assert_eq!(rx.recv().expect("recv failed"), None);
     }
 
     #[test]
     fn one_line_one_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("this is a single line\n")
         ], tx);
@@ -103,7 +99,7 @@ mod tests {
 
     #[test]
     fn one_line_two_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("first\n"),
             file_with("second\n")
@@ -115,7 +111,7 @@ mod tests {
 
     #[test]
     fn one_line_three_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("first\n"),
             file_with("second\n"),
@@ -129,7 +125,7 @@ mod tests {
 
     #[test]
     fn multiple_line_one_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("first\nsecond\nthird\n")
         ], tx);
@@ -141,7 +137,7 @@ mod tests {
 
     #[test]
     fn multiple_line_two_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("first\nsecond\nthird\n"),
             file_with("fourth\nfifth\n")
@@ -156,7 +152,7 @@ mod tests {
 
     #[test]
     fn multiple_line_three_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("first\nsecond\nthird\n"),
             file_with("fourth\nfifth\n"),
@@ -174,7 +170,7 @@ mod tests {
 
     #[test]
     fn lines_in_first_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with("first\nsecond\nthird\n"),
             file_with("")
@@ -187,7 +183,7 @@ mod tests {
 
     #[test]
     fn lines_in_second_file() {
-        let (tx, rx) = sync_channel(CHANNEL_BUFFER);
+        let (tx, rx) = channel();
         line_producer(vec![
             file_with(""),
             file_with("fourth\nfifth\n")

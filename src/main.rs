@@ -15,6 +15,7 @@ mod formatter;
 mod settings;
 mod converter;
 mod grouper;
+mod writer;
 // mod collector;
 
 use std::fs::File;
@@ -29,15 +30,12 @@ use cliparser::parse;
 
 use std::io::prelude::*;
 
-use nix::sys::pthread::pthread_self;
-
 fn main() {
     // setup error handling
     panic::set_hook(Box::new(|_info| { /* do nothing */ }));
 
     // run entire program in a thread to catch panics
     let phantom = thread::Builder::new().name("phantom_main".to_string()).spawn(move || {
-        println!("In phantom_main {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
         // parse and extract application settings (see --help)
         let matches = parse();
         let time_frame: TimeFrame = settings::time_frame(&matches);
@@ -88,31 +86,18 @@ fn main() {
 
         // start the file reader / input data producer
         let (line_producer, rx) = line_producer::create(input_files);
-        let (formatter, rx) = formatter::create(rx, tick);
-        let (grouper, rx)   = grouper::create(rx, time_frame);
-        let (converter, rx) = converter::create(rx, ask_bid);
+        //for file in input_files.iter_mut() {
+            let (formatter, rx) = formatter::create(rx, tick);
+            let (grouper, rx)   = grouper::create(rx, time_frame);
+            let (converter, rx) = converter::create(rx, ask_bid);
+            let writer = writer::create(rx, output_file);
 
-        println!("line_producer: {:#?}", line_producer.thread().id());
-        println!("formatter: {:#?}", formatter.thread().id());
-        println!("grouper: {:#?}", grouper.thread().id());
-        println!("converter: {:#?}", converter.thread().id());
-
-        while let Some(mut row) = rx.recv().unwrap() {
-            let mut line: Vec<String> = Vec::new();
-            line.push(row.datetime.to_string());
-            for col in row.column_data.iter_mut() {
-                line.push(col.to_string());
-            }
-            let line = line.join(",");
-            let line = line.as_bytes();
-            output_file.write(line).expect("Could not write to file");
-            output_file.write(b"\n").expect("Could not write to file");
-        }
-
-        handle(line_producer);
-        handle(formatter);
-        handle(grouper);
-        handle(converter);
+            handle(line_producer);
+            handle(formatter);
+            handle(grouper);
+            handle(converter);
+            handle(writer);
+        //}
     });
     handle(phantom.expect("Thread did not spawn correctly"));
 }

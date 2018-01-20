@@ -1,13 +1,10 @@
 use chrono::prelude::*;
 use fxconv::AskBidOption;
 use std::thread;
-use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::channel;
 use fxconv::AskBid;
 use grouper::TickGroup;
 use std::sync::mpsc::{Receiver};
-use settings::CHANNEL_BUFFER;
-use thread_id;
-use nix::sys::pthread::pthread_self;
 
 pub struct Row {
     pub datetime: DateTime<Utc>,
@@ -57,7 +54,7 @@ fn process(column_structure: &[AskBid], rows_ask: & Vec<f32>, rows_bid: & Vec<f3
 }
 
 // Create the converter
-pub fn create(rx_grouper: Receiver<Option<TickGroup>>, ask_bid: Option<AskBidOption>)  -> (thread::JoinHandle<()>, Receiver<Option<Row>>){
+pub fn create(rx_grouper: Receiver<Option<TickGroup>>, ask_bid: Option<AskBidOption>)  -> (thread::JoinHandle<()>, Receiver<Option<Row>>) {
     // Build the conversion structure
     let column_structure: &[AskBid] = match ask_bid {
         Some(AskBidOption::AskOnly) => &[AskBid::Ask],
@@ -66,9 +63,8 @@ pub fn create(rx_grouper: Receiver<Option<TickGroup>>, ask_bid: Option<AskBidOpt
         _ => &[AskBid::Ask, AskBid::Bid]
     };
 
-    let (tx_converter, rx_converter) = sync_channel(CHANNEL_BUFFER);
+    let (tx_converter, rx_converter) = channel();
     let converter_thread = thread::Builder::new().name("converter".to_string()).spawn(move || {
-        println!("In converter {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
 
         while let Some(group) = rx_grouper.recv().expect("Unable to receive from channel") {
 

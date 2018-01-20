@@ -11,8 +11,6 @@ use market::timeframe::TimeUnit;
 use fxconv::AskBidOption;
 use formatter::TickDescription;
 
-pub const CHANNEL_BUFFER: usize = 1024*1024*16;
-
 pub fn time_frame(matches: &ArgMatches) -> TimeFrame {
     let tf = matches.value_of("timeframe").unwrap();
     // count the digits

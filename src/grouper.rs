@@ -2,13 +2,10 @@ use chrono::prelude::*;
 use market::timeframe::TimeFrame;
 use market::timeframe::TimeUnit;
 use std::thread;
-use std::sync::mpsc::sync_channel;
+use std::sync::mpsc::channel;
 use time::Duration;
 use formatter::InputRow;
-use std::sync::mpsc::{SyncSender, Receiver};
-use settings::CHANNEL_BUFFER;
-use thread_id;
-use nix::sys::pthread::pthread_self;
+use std::sync::mpsc::{Sender, Receiver};
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -56,15 +53,14 @@ impl TickGroup {
 }
 
 pub fn create(rx_formatter: Receiver<Option<InputRow>>, time_frame: TimeFrame)  -> (thread::JoinHandle<()>, Receiver<Option<TickGroup>>) {
-    let (tx_grouper, rx_grouper) = sync_channel(CHANNEL_BUFFER); // TODO:: make buffered sync_channel with configurable limit
+    let (tx_grouper, rx_grouper) = channel();
     let grouper_thread = thread::Builder::new().name("grouper".to_string()).spawn(move || {
-        println!("In grouper {id:x}, {tid:x}", id=thread_id::get(), tid=pthread_self());
         grouper(tx_grouper, rx_formatter, time_frame);
     });
     (grouper_thread.expect("Thread did not spawn correctly"), rx_grouper)
 }
 
-fn grouper(tx_grouper: SyncSender<Option<TickGroup>>, rx_formatter: Receiver<Option<InputRow>>, time_frame: TimeFrame) {
+fn grouper(tx_grouper: Sender<Option<TickGroup>>, rx_formatter: Receiver<Option<InputRow>>, time_frame: TimeFrame) {
     // Select unit measurment
     let duration_func = match  *time_frame.unit() {
         TimeUnit::Second => Duration::seconds,
@@ -82,7 +78,7 @@ fn grouper(tx_grouper: SyncSender<Option<TickGroup>>, rx_formatter: Receiver<Opt
     let mut group = TickGroup::new();
     let mut first: Option<DateTime<Utc>> = None; // first datetime in timeframe
 
-    while let Some(row) = rx_formatter.recv().expect("Unable to receive from sync_channel") {
+    while let Some(row) = rx_formatter.recv().expect("Unable to receive from channel") {
         // if not initialized, then init
         if first == None {
             first = Some(row.datetime);
@@ -110,8 +106,8 @@ mod tests {
 
     #[test]
     fn no_data() {
-        let (txf, rxf) = sync_channel(CHANNEL_BUFFER);
-        let (txg, rxg) = sync_channel(CHANNEL_BUFFER);
+        let (txf, rxf) = channel();
+        let (txg, rxg) = channel();
         txf.send(None).expect("Could not send None");
         grouper(txg, rxf, TimeFrame::new(1, TimeUnit::Day));
         assert_eq!(rxg.recv().expect("Failed to recieve"), None);
@@ -119,8 +115,8 @@ mod tests {
 
     #[test]
     fn one() {
-        let (txf, rxf) = sync_channel(CHANNEL_BUFFER);
-        let (txg, rxg) = sync_channel(CHANNEL_BUFFER);
+        let (txf, rxf) = channel();
+        let (txg, rxg) = channel();
         txf.send(Some(InputRow {
             datetime: Utc.ymd(2016, 11, 1).and_hms_milli(22, 30, 5, 613),
             ask: 1.1234,
@@ -138,8 +134,8 @@ mod tests {
 
     #[test]
     fn two_same_time_frames() {
-        let (txf, rxf) = sync_channel(CHANNEL_BUFFER);
-        let (txg, rxg) = sync_channel(CHANNEL_BUFFER);
+        let (txf, rxf) = channel();
+        let (txg, rxg) = channel();
         txf.send(Some(InputRow {
             datetime: Utc.ymd(2016, 11, 1).and_hms_milli(22, 30, 5, 613),
             ask: 1.1234,
@@ -162,8 +158,8 @@ mod tests {
 
     #[test]
     fn two_different_time_frames() {
-        let (txf, rxf) = sync_channel(CHANNEL_BUFFER);
-        let (txg, rxg) = sync_channel(CHANNEL_BUFFER);
+        let (txf, rxf) = channel();
+        let (txg, rxg) = channel();
         txf.send(Some(InputRow {
             datetime: Utc.ymd(2016, 11, 1).and_hms_milli(22, 30, 5, 613),
             ask: 1.1234,

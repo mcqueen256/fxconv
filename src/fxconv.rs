@@ -11,3 +11,8 @@ pub enum AskBid {
     Ask,
     Bid
 }
+
+pub enum Action {
+    End,
+    Continue
+}

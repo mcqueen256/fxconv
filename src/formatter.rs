@@ -76,8 +76,7 @@ fn formatter(tx_formatter: Sender<Option<InputRow>>, rx_producer: Receiver<Optio
                     let hour: u32 = extract(elm.get(9..11), line_number, elm, "hour");
                     let minute: u32 = extract(elm.get(12..14), line_number, elm, "minute");
                     let second: u32 = extract(elm.get(15..17), line_number, elm, "second");
-                    let millis: u32 = extract(elm.get(18..), line_number, elm, "millis");
-                    datetime = Some(Utc.ymd(year, month, day).and_hms_milli(hour, minute, second, millis));
+                    datetime = Some(Utc.ymd(year, month, day).and_hms(hour, minute, second));
                 },
                 TickDescription::Ask => {
                     ask = Some(elm.parse::<f32>().expect(&format!("Line {}, column {} not a number", line_number, elm)));

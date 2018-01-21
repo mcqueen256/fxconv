@@ -11,6 +11,3 @@ chrono = "^0.4"
 time = "^0.1.39"
 rand = "0.4.2"
 pbr = "1.0.0"
-
-[profile.release]
-debug = true

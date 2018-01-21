@@ -6,6 +6,7 @@ use chrono::prelude::*;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
+#[derive(Clone)]
 pub enum TickDescription {
     DateTime,
     Ask,

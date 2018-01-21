@@ -1,4 +1,4 @@
-
+#[derive(Clone)]
 pub enum AskBidOption {
     AskOnly,
     AskFirst,
@@ -10,9 +10,4 @@ pub enum AskBidOption {
 pub enum AskBid {
     Ask,
     Bid
-}
-
-pub enum Action {
-    End,
-    Continue
 }

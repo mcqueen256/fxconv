@@ -1,7 +1,7 @@
 use std::fmt;
 
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum TimeUnit {
     Second,
     Minute,
@@ -22,7 +22,7 @@ impl fmt::Display for TimeUnit {
         })
     }
 }
-
+#[derive(Clone)]
 pub struct TimeFrame {
     unit: TimeUnit,
     length: usize

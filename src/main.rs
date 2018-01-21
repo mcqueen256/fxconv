@@ -11,12 +11,9 @@ mod fxconv;
 mod market;
 mod line_producer;
 mod formatter;
-// mod producer;
 mod settings;
 mod converter;
 mod grouper;
-mod writer;
-// mod collector;
 
 use std::fs::File;
 use std::thread;
@@ -85,19 +82,29 @@ fn main() {
                 }
 
         // start the file reader / input data producer
-        let (line_producer, rx) = line_producer::create(input_files);
-        //for file in input_files.iter_mut() {
-            let (formatter, rx) = formatter::create(rx, tick);
-            let (grouper, rx)   = grouper::create(rx, time_frame);
-            let (converter, rx) = converter::create(rx, ask_bid);
-            let writer = writer::create(rx, output_file);
+        for file in input_files.into_iter() {
+            let (line_producer, rx) = line_producer::create(file);
+            let (formatter, rx) = formatter::create(rx, tick.clone());
+            let (grouper, rx)   = grouper::create(rx, time_frame.clone());
+            let (converter, rx) = converter::create(rx, ask_bid.clone());
+
+            while let Some(mut row) = rx.recv().unwrap() {
+                let mut line: Vec<String> = Vec::new();
+                line.push(row.datetime.to_string());
+                for col in row.column_data.iter_mut() {
+                    line.push(col.to_string());
+                }
+                let line = line.join(",");
+                let line = line.as_bytes();
+                output_file.write(line).expect("Could not write to file");
+                output_file.write(b"\n").expect("Could not write to file");
+            }
 
             handle(line_producer);
             handle(formatter);
             handle(grouper);
             handle(converter);
-            handle(writer);
-        //}
+        }
     });
     handle(phantom.expect("Thread did not spawn correctly"));
 }

@@ -99,5 +99,9 @@ pub fn parse<'a>() -> ArgMatches<'a> {
                 "    x       column filler\n"
             ].join("").as_str())
         )
+        .arg(Arg::with_name("bar")
+            .long("bar")
+            .help("Show progress bar")
+        )
     .get_matches()
 }

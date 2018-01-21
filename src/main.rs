@@ -2,9 +2,7 @@ extern crate clap;
 extern crate chrono;
 extern crate time;
 extern crate rand;
-extern crate thread_id;
-extern crate nix;
-
+extern crate pbr;
 
 mod cliparser;
 mod fxconv;
@@ -19,13 +17,14 @@ use std::fs::File;
 use std::thread;
 use std::process::exit;
 use std::panic;
+use std::io::prelude::*;
 
 use market::timeframe::TimeFrame;
 use fxconv::AskBidOption;
 use formatter::TickDescription;
 use cliparser::parse;
 
-use std::io::prelude::*;
+use pbr::ProgressBar;
 
 fn main() {
     // setup error handling
@@ -41,45 +40,53 @@ fn main() {
         let ask_bid: Option<AskBidOption> = settings::ask_bid(&matches);
         let headers: bool = settings::headers(&matches);
         let tick: Vec<TickDescription> = settings::tick(&matches);
+        let bar = settings::bar(&matches);
+
+        let mut progress_files = ProgressBar::new(input_files.len() as u64);
+        if bar {
+            progress_files.tick_format("▏▎▍▌▋▊▉██▉▊▋▌▍▎▏");
+            progress_files.show_message = true;
+            progress_files.tick();
+        }
 
 
-                if headers {
-                    let ask = "ask,ask,ask,ask";
-                    let bid = "bid,bid,bid,bid";
-                    let ohlc = "open,high,low,close";
-                    let mut top = String::from(",");
-                    let mut bottom = String::from("datetime,");
-                    match ask_bid {
-                        Some(AskBidOption::AskOnly) => {
-                            top.push_str(ask);
-                            bottom.push_str(ohlc);
-                        },
-                        Some(AskBidOption::BidOnly) => {
-                            top.push_str(ask);
-                            bottom.push_str(ohlc);
-                        },
-                        Some(AskBidOption::BidFirst) => {
-                            top.push_str(bid);
-                            top.push_str(",");
-                            top.push_str(ask);
-                            bottom.push_str(ohlc);
-                            bottom.push_str(",");
-                            bottom.push_str(ohlc);
-                        },
-                        _ => {
-                            top.push_str(ask);
-                            top.push_str(",");
-                            top.push_str(bid);
-                            bottom.push_str(ohlc);
-                            bottom.push_str(",");
-                            bottom.push_str(ohlc);
-                        },
-                    }
-                    output_file.write(top.as_bytes()).expect("Cannot write to output");
-                    output_file.write(b"\n").expect("Cannot write to output");
-                    output_file.write(bottom.as_bytes()).expect("Cannot write to output");
-                    output_file.write(b"\n").expect("Cannot write to output");
-                }
+        if headers {
+            let ask = "ask,ask,ask,ask";
+            let bid = "bid,bid,bid,bid";
+            let ohlc = "open,high,low,close";
+            let mut top = String::from(",");
+            let mut bottom = String::from("datetime,");
+            match ask_bid {
+                Some(AskBidOption::AskOnly) => {
+                    top.push_str(ask);
+                    bottom.push_str(ohlc);
+                },
+                Some(AskBidOption::BidOnly) => {
+                    top.push_str(ask);
+                    bottom.push_str(ohlc);
+                },
+                Some(AskBidOption::BidFirst) => {
+                    top.push_str(bid);
+                    top.push_str(",");
+                    top.push_str(ask);
+                    bottom.push_str(ohlc);
+                    bottom.push_str(",");
+                    bottom.push_str(ohlc);
+                },
+                _ => {
+                    top.push_str(ask);
+                    top.push_str(",");
+                    top.push_str(bid);
+                    bottom.push_str(ohlc);
+                    bottom.push_str(",");
+                    bottom.push_str(ohlc);
+                },
+            }
+            output_file.write(top.as_bytes()).expect("Cannot write to output");
+            output_file.write(b"\n").expect("Cannot write to output");
+            output_file.write(bottom.as_bytes()).expect("Cannot write to output");
+            output_file.write(b"\n").expect("Cannot write to output");
+        }
 
         // start the file reader / input data producer
         for file in input_files.into_iter() {
@@ -104,6 +111,9 @@ fn main() {
             handle(formatter);
             handle(grouper);
             handle(converter);
+            if bar {
+                progress_files.inc();
+            }
         }
     });
     handle(phantom.expect("Thread did not spawn correctly"));

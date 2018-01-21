@@ -124,6 +124,10 @@ pub fn headers(matches: &ArgMatches) -> bool{
     matches.is_present("headers")
 }
 
+pub fn bar(matches: &ArgMatches) -> bool{
+    matches.is_present("bar")
+}
+
 pub fn tick(matches: &ArgMatches) -> Vec<TickDescription> {
     let mut description: Vec<TickDescription> = Vec::new();
     if let Some(tick) = matches.value_of("tick") {
